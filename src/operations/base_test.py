@@ -6,10 +6,9 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from core.base import BaseOperation
+from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
-
-from ..core.base import BaseOperation
-from ..core.context import ImageContext
 
 
 class BaseOperationTest(ABC):

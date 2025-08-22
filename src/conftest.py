@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from core.context import ImageContext
-from utils.synthetic_images import (
+from .core.context import ImageContext
+from .utils.synthetic_images import (
     create_aspect_stretch_test,
     create_block_filter_test,
     create_checkerboard,
