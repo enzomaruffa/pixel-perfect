@@ -12,15 +12,8 @@ from PIL import Image
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
-from utils.cache import (
-    cleanup_old_cache,
-    format_bytes,
-    get_cache_size,
-    invalidate_cache_pattern,
-    load_cached_result,
-    save_cached_result,
-    verify_cache_integrity,
-)
+# Import at module level to avoid circular imports
+# We'll import these functions when needed in methods
 
 
 @dataclass
@@ -43,6 +36,7 @@ class CacheStats:
     @property
     def human_readable_size(self) -> str:
         """Get human-readable cache size."""
+        from utils.cache import format_bytes
         return format_bytes(self.total_bytes)
 
     def to_dict(self) -> dict[str, Any]:
@@ -144,6 +138,7 @@ class CacheManager:
 
         # Check disk cache
         try:
+            from utils.cache import load_cached_result
             result = load_cached_result(self.cache_dir, cache_key)
             if result is not None:
                 self._record_hit(operation.operation_name)
@@ -185,11 +180,13 @@ class CacheManager:
         try:
             # Check size limits before saving
             if self.policy.max_size_bytes is not None:
+                from utils.cache import get_cache_size
                 current_size = get_cache_size(self.cache_dir)["total_bytes"]
                 if current_size >= self.policy.max_size_bytes:
                     self._enforce_size_limit()
 
             # Save to disk
+            from utils.cache import save_cached_result
             save_cached_result(self.cache_dir, cache_key, image, context)
             self._record_save(operation.operation_name)
 
@@ -225,6 +222,7 @@ class CacheManager:
         age_limit = max_age_days or self.policy.max_age_days
 
         try:
+            from utils.cache import cleanup_old_cache
             removed_count = cleanup_old_cache(self.cache_dir, age_limit)
 
             # Update statistics
@@ -257,6 +255,7 @@ class CacheManager:
             Number of entries invalidated
         """
         try:
+            from utils.cache import invalidate_cache_pattern
             removed_count = invalidate_cache_pattern(self.cache_dir, pattern)
 
             # Remove from memory cache too
@@ -310,6 +309,7 @@ class CacheManager:
 
                     # Check if already cached
                     cache_key = operation.get_cache_key(image_hash)
+                    from utils.cache import load_cached_result
                     if (
                         cache_key in self._memory_cache
                         or load_cached_result(self.cache_dir, cache_key) is not None
@@ -346,6 +346,7 @@ class CacheManager:
 
         # Overall statistics
         overall_stats = self._stats
+        from utils.cache import get_cache_size, verify_cache_integrity
         size_info = get_cache_size(self.cache_dir)
         integrity_info = verify_cache_integrity(self.cache_dir)
 
@@ -395,7 +396,7 @@ class CacheManager:
                 "## Configuration",
                 f"Cache directory: {self.cache_dir}",
                 f"Cache enabled: {self.policy.enabled}",
-                f"Max size: {format_bytes(self.policy.max_size_bytes) if self.policy.max_size_bytes else 'Unlimited'}",
+                f"Max size: {self._format_bytes_local(self.policy.max_size_bytes) if self.policy.max_size_bytes else 'Unlimited'}",
                 f"Max age: {self.policy.max_age_days} days",
                 f"Auto cleanup: {self.policy.auto_cleanup}",
                 f"Memory cache size limit: {self.policy.memory_cache_size}",
@@ -454,6 +455,7 @@ class CacheManager:
 
     def _update_cache_stats(self) -> None:
         """Update cache size statistics."""
+        from utils.cache import get_cache_size
         size_info = get_cache_size(self.cache_dir)
         self._stats.total_bytes = size_info["total_bytes"]
         self._stats.entry_count = size_info["entry_count"]
@@ -467,6 +469,7 @@ class CacheManager:
         if self.policy.max_size_bytes is None:
             return
 
+        from utils.cache import get_cache_size
         current_size = get_cache_size(self.cache_dir)["total_bytes"]
 
         while current_size > self.policy.max_size_bytes:
@@ -570,6 +573,24 @@ class CacheManager:
 
         # Generate hash
         return hashlib.md5(img_data).hexdigest()
+    
+    def _format_bytes_local(self, bytes_value: int) -> str:
+        """Format bytes as human-readable string (local version to avoid circular imports)."""
+        if bytes_value == 0:
+            return "0 B"
+
+        units = ["B", "KB", "MB", "GB", "TB"]
+        unit_index = 0
+        value = float(bytes_value)
+
+        while value >= 1024 and unit_index < len(units) - 1:
+            value /= 1024
+            unit_index += 1
+
+        if unit_index == 0:
+            return f"{int(value)} {units[unit_index]}"
+        else:
+            return f"{value:.1f} {units[unit_index]}"
 
     def _load_stats(self) -> None:
         """Load existing statistics from disk."""
