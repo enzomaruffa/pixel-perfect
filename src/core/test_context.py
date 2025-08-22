@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from core.context import ImageContext
+from .context import ImageContext
 
 
 class TestImageContext:
@@ -67,7 +67,7 @@ class TestImageContext:
     def test_invalid_dtype(self):
         """Test that invalid dtypes raise ValidationError."""
         with pytest.raises(ValidationError):
-            ImageContext(width=10, height=10, channels=3, dtype="int16")
+            ImageContext(width=10, height=10, channels=3, dtype="int16")  # type: ignore[arg-type]
 
     def test_valid_dtypes(self):
         """Test that valid dtypes work."""

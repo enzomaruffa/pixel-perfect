@@ -1,4 +1,4 @@
-"""Synthetic test image generation for validating operations."""
+"""Synthetic image generation utilities for testing and validation."""
 
 from typing import Literal
 

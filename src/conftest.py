@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 
 from core.context import ImageContext
-from utils.test_images import (
+from utils.synthetic_images import (
     create_aspect_stretch_test,
     create_block_filter_test,
     create_checkerboard,
@@ -195,12 +195,17 @@ def assert_no_warnings(context: ImageContext):
     assert not context.warnings, f"Unexpected warnings: {context.warnings}"
 
 
-def get_pixel_linear_index(image: Image.Image, index: int) -> tuple:
+def get_pixel_linear_index(image: Image.Image, index: int) -> tuple[int, ...]:
     """Get pixel value at linear index (row-major order)."""
     width, height = image.size
     row = index // width
     col = index % width
-    return image.getpixel((col, row))
+    pixel = image.getpixel((col, row))
+    # Convert to tuple if needed
+    if isinstance(pixel, tuple):
+        return tuple(int(v) if v is not None else 0 for v in pixel)
+    else:
+        return (int(pixel) if pixel is not None else 0,)
 
 
 def count_pixels_with_value(image: Image.Image, value) -> int:

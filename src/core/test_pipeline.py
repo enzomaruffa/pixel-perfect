@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from core.pipeline import Pipeline
+from .pipeline import Pipeline
+
+# ruff: noqa: SLF001  # Allow private method access in tests
 
 
 class TestPipeline:

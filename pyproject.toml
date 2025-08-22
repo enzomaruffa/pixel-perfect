@@ -55,15 +55,15 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "test_*.py" = ["S101"]
-"**/tests/*" = ["S101"]
-"src/pipeline/operations/*.py" = ["S101"]  # Allow asserts in operation test classes
+"**/test_*.py" = ["S101"]
+"src/**/test_*.py" = ["S101"]  # Allow asserts in co-located test files
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
 
 # Pytest configuration
 [tool.pytest.ini_options]
-testpaths = ["src/pipeline", "tests"]
+testpaths = ["src"]
 pythonpath = ["src"]  # Important for src layout
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
@@ -89,7 +89,7 @@ reportMissingTypeStubs = false  # Don't complain about missing stubs for third-p
 reportUnknownMemberType = false  # PIL/Pillow has poor type hints
 reportUnknownArgumentType = false  # Same for numpy
 reportUnknownVariableType = false
-reportPrivateUsage = true
+reportPrivateUsage = false  # Disabled to allow testing protected methods
 reportUnnecessaryTypeIgnoreComment = true
 reportImplicitStringConcatenation = true
 

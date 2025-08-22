@@ -4,11 +4,12 @@ import pytest
 from PIL import Image
 
 from exceptions import DimensionError, ProcessingError, ValidationError
-from utils.cache import (
+
+from .cache import (
     format_bytes,
     get_cache_size,
 )
-from utils.image import (
+from .image import (
     calculate_memory_usage,
     create_context_from_image,
     create_filled_image,
@@ -19,13 +20,13 @@ from utils.image import (
     paste_image_region,
     resize_image_proportional,
 )
-from utils.test_images import (
+from .synthetic_images import (
     create_checkerboard,
     create_gradient,
     create_numbered_grid,
     create_test_suite,
 )
-from utils.validation import (
+from .validation import (
     validate_channel_list,
     validate_color_tuple,
     validate_expression_safe,
@@ -202,7 +203,7 @@ class TestImageUtils:
         """Test 2D pixel indexing."""
         image = create_numbered_grid(4, 4)
 
-        pixel = get_pixel_at_index(image, (1, 2), "2d")  # Row 1, col 2
+        pixel = get_pixel_at_index(image, (1, 2), "2d")  # type: ignore[arg-type] # Row 1, col 2
         assert isinstance(pixel, tuple)
 
     def test_get_pixel_at_index_bounds_checking(self):
@@ -213,7 +214,7 @@ class TestImageUtils:
             get_pixel_at_index(image, 16, "linear")  # Out of bounds
 
         with pytest.raises(ProcessingError):
-            get_pixel_at_index(image, (4, 0), "2d")  # Row out of bounds
+            get_pixel_at_index(image, (4, 0), "2d")  # type: ignore[arg-type] # Row out of bounds
 
     def test_create_filled_image(self):
         """Test filled image creation."""
@@ -372,7 +373,7 @@ class TestTestImages:
     def test_create_gradient_invalid_direction(self):
         """Test gradient creation with invalid direction."""
         with pytest.raises(ProcessingError):
-            create_gradient(10, 10, "invalid")
+            create_gradient(10, 10, "invalid")  # type: ignore[arg-type]
 
     def test_create_checkerboard(self):
         """Test checkerboard creation."""

@@ -22,7 +22,7 @@ from utils.image import (
     paste_image_region,
     resize_image_proportional,
 )
-from utils.test_images import (
+from utils.synthetic_images import (
     create_checkerboard,
     create_gradient,
     create_numbered_grid,
