@@ -11,6 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import PipelineError, ValidationError
+from utils.cache_manager import CacheManager, CachePolicy
 
 console = Console()
 
@@ -24,6 +25,8 @@ class Pipeline:
         *,
         debug: bool = False,
         cache_dir: str | Path | None = None,
+        cache_policy: CachePolicy | None = None,
+        enable_memory_cache: bool = True,
     ):
         """Initialize pipeline with input image.
 
@@ -31,10 +34,11 @@ class Pipeline:
             input_path: Path to input image
             debug: Enable debug output
             cache_dir: Directory for caching operation results
+            cache_policy: Cache policy configuration
+            enable_memory_cache: Whether to use in-memory caching
         """
         self.input_path = Path(input_path)
         self.debug = debug
-        self.cache_dir = Path(cache_dir) if cache_dir else None
         self.operations: list[BaseOperation] = []
         self._image: Image.Image | None = None
         self._context: ImageContext | None = None
@@ -42,8 +46,17 @@ class Pipeline:
         if not self.input_path.exists():
             raise FileNotFoundError(f"Input image not found: {self.input_path}")
 
-        if self.cache_dir:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Initialize cache manager if cache directory is provided
+        if cache_dir:
+            self.cache_dir = Path(cache_dir)
+            self.cache_manager = CacheManager(
+                cache_dir=cache_dir,
+                policy=cache_policy or CachePolicy(),
+                enable_memory_cache=enable_memory_cache,
+            )
+        else:
+            self.cache_dir = None
+            self.cache_manager = None
 
     def add(self, operation: BaseOperation) -> "Pipeline":
         """Add an operation to the pipeline.
@@ -88,9 +101,16 @@ class Pipeline:
 
     def _get_image_hash(self, image: Image.Image) -> str:
         """Generate hash for an image."""
-        # Convert to numpy array and hash
-        arr = np.array(image)
-        return hashlib.md5(arr.tobytes()).hexdigest()
+        # For cache consistency, we should hash the original file content
+        # rather than the processed image which might have conversion differences
+        try:
+            with open(self.input_path, "rb") as f:
+                file_content = f.read()
+            return hashlib.md5(file_content).hexdigest()
+        except Exception:
+            # Fallback to image data if file reading fails
+            arr = np.array(image)
+            return hashlib.md5(arr.tobytes()).hexdigest()
 
     def _validate_pipeline(self) -> ImageContext:
         """Run validation pass through all operations.
@@ -159,6 +179,11 @@ class Pipeline:
 
         if self.debug:
             console.print("\n[cyan]Executing pipeline...[/cyan]")
+            if self.cache_manager:
+                cache_stats = self.cache_manager.get_statistics()
+                console.print(
+                    f"Cache status: {cache_stats.entry_count} entries, {cache_stats.human_readable_size}"
+                )
 
         with Progress(
             SpinnerColumn(),
@@ -166,6 +191,9 @@ class Pipeline:
             console=console,
             disable=not self.debug,
         ) as progress:
+            cache_hits = 0
+            cache_misses = 0
+
             for i, operation in enumerate(self.operations, 1):
                 task = progress.add_task(
                     f"[{i}/{len(self.operations)}] {operation.operation_name}...",
@@ -174,31 +202,31 @@ class Pipeline:
 
                 try:
                     # Check cache if available
-                    if self.cache_dir:
-                        cache_key = operation.get_cache_key(self._get_image_hash(image))
-                        cache_path = self.cache_dir / f"{cache_key}.png"
+                    cached_result = None
+                    if self.cache_manager:
+                        image_hash = self._get_image_hash(image)
+                        cached_result = self.cache_manager.get_cached_result(operation, image_hash)
 
-                        if cache_path.exists():
+                        if cached_result is not None:
+                            cache_hits += 1
+                            image, context = cached_result
                             if self.debug:
                                 progress.update(
                                     task,
-                                    description=f"[{i}/{len(self.operations)}] {operation.operation_name} (cached)",
+                                    description=f"[{i}/{len(self.operations)}] {operation.operation_name} [green](cached)[/green]",
                                 )
-                            image = Image.open(cache_path)
-                            # Still need to update context
-                            _, context = operation.apply(image, context)
                             progress.remove_task(task)
                             continue
 
                     # Apply operation
-                    image, context = operation.apply(image, context)
+                    cache_misses += 1
+                    validated_context = operation.validate_operation(context)
+                    image, context = operation.apply(image, validated_context)
 
                     # Cache result if enabled
-                    if self.cache_dir:
-                        cache_key = operation.get_cache_key(self._get_image_hash(image))
-                        cache_path = self.cache_dir / f"{cache_key}.png"
-                        cache_path.parent.mkdir(parents=True, exist_ok=True)
-                        image.save(cache_path)
+                    if self.cache_manager:
+                        image_hash = self._get_image_hash(image)
+                        self.cache_manager.save_result(operation, image_hash, image, context)
 
                 except Exception as e:
                     raise PipelineError(
@@ -206,6 +234,14 @@ class Pipeline:
                     ) from e
 
                 progress.remove_task(task)
+
+            # Show cache statistics if debug enabled
+            if self.debug and self.cache_manager:
+                total_ops = cache_hits + cache_misses
+                hit_rate = cache_hits / total_ops if total_ops > 0 else 0
+                console.print(
+                    f"\nCache performance: {cache_hits}/{total_ops} hits ({hit_rate:.1%})"
+                )
 
         # Save output
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -234,3 +270,85 @@ class Pipeline:
             context = operation.validate_operation(context)
 
         return total_memory
+
+    def get_cache_statistics(self) -> dict | None:
+        """Get cache statistics.
+
+        Returns:
+            Cache statistics dictionary or None if caching disabled
+        """
+        if not self.cache_manager:
+            return None
+
+        return self.cache_manager.get_statistics().to_dict()
+
+    def print_cache_report(self) -> None:
+        """Print detailed cache report to console."""
+        if not self.cache_manager:
+            console.print("[yellow]Caching is not enabled[/yellow]")
+            return
+
+        report = self.cache_manager.export_cache_report()
+        console.print(report)
+
+    def cleanup_cache(self, max_age_days: int | None = None) -> int:
+        """Clean up old cache entries.
+
+        Args:
+            max_age_days: Maximum age in days (uses policy default if None)
+
+        Returns:
+            Number of entries removed
+        """
+        if not self.cache_manager:
+            return 0
+
+        return self.cache_manager.cleanup_old_entries(max_age_days)
+
+    def clear_cache(self) -> int:
+        """Clear all cache entries.
+
+        Returns:
+            Number of entries removed
+        """
+        if not self.cache_manager:
+            return 0
+
+        return self.cache_manager.clear_cache()
+
+    def warm_cache(self, test_images: list[Image.Image] | None = None) -> dict:
+        """Pre-populate cache with operation results.
+
+        Args:
+            test_images: Optional list of test images
+
+        Returns:
+            Dict with warming statistics
+        """
+        if not self.cache_manager:
+            return {"warmed": 0, "errors": 0}
+
+        return self.cache_manager.warm_cache(self.operations, test_images)
+
+    def set_cache_size_limit(self, max_size_bytes: int) -> None:
+        """Set cache size limit.
+
+        Args:
+            max_size_bytes: Maximum cache size in bytes
+        """
+        if self.cache_manager:
+            self.cache_manager.set_size_limit(max_size_bytes)
+
+    def invalidate_cache_pattern(self, pattern: str) -> int:
+        """Invalidate cache entries matching pattern.
+
+        Args:
+            pattern: Glob pattern to match cache keys
+
+        Returns:
+            Number of entries invalidated
+        """
+        if not self.cache_manager:
+            return 0
+
+        return self.cache_manager.invalidate_pattern(pattern)
