@@ -57,6 +57,7 @@ class ImagePreview(Static):
         super().__init__(**kwargs)
         self.image_path: Optional[Path] = None
         self.preview_text = "No image loaded"
+        self.update(self.preview_text)
         
     def set_image(self, image_path: Path) -> None:
         """Set the image to preview."""
@@ -66,12 +67,14 @@ class ImagePreview(Static):
     def update_preview(self) -> None:
         """Update the ASCII preview."""
         if not self.image_path or not self.image_path.exists():
-            self.update("❌ Image not found")
+            self.preview_text = "❌ Image not found"
+            self.update(self.preview_text)
             return
             
         try:
             # Load and resize image for ASCII preview
             image = Image.open(self.image_path)
+            original_size = image.size
             
             # Resize to fit terminal (roughly)
             target_width = 40
@@ -91,8 +94,8 @@ class ImagePreview(Static):
             if image.mode != 'L':
                 image = image.convert('L')
             
-            # ASCII characters from dark to light
-            ascii_chars = "@%#*+=-:. "
+            # ASCII characters from light to dark (inverted for proper display)
+            ascii_chars = " .:-=+*#%@"
             
             # Generate ASCII art
             ascii_lines = []
@@ -105,13 +108,14 @@ class ImagePreview(Static):
                 ascii_lines.append(line)
             
             # Add image info
-            info = f"📐 {image.width}×{image.height} | 📊 {image.mode}"
-            preview = f"{info}\n\n" + "\n".join(ascii_lines)
+            info = f"📐 {original_size[0]}×{original_size[1]} | 📊 {image.mode}"
+            self.preview_text = f"{info}\n\n" + "\n".join(ascii_lines)
             
-            self.update(preview)
+            self.update(self.preview_text)
             
         except Exception as e:
-            self.update(f"❌ Preview error: {e}")
+            self.preview_text = f"❌ Preview error: {e}"
+            self.update(self.preview_text)
     
     def render(self) -> Text:
         return Text(self.preview_text, style="cyan")
@@ -144,14 +148,16 @@ class OperationBrowser(Container):
         # Presets section
         yield Rule()
         yield Label("🎭 Presets", classes="subtitle")
-        preset_list = ListView(id="preset_list")
         
+        # Create preset list items
+        preset_items = []
         presets = get_all_presets()
         for preset_name, preset_data in presets.items():
             description = preset_data.get("description", "No description")
-            preset_list.append(ListItem(Label(f"{preset_name}: {description[:40]}...")))
+            preset_items.append(ListItem(Label(f"{preset_name}: {description[:40]}...")))
         
-        yield preset_list
+        # Yield the ListView with items
+        yield ListView(*preset_items, id="preset_list")
 
 
 class PipelineEditor(Container):
@@ -313,7 +319,8 @@ class InteractivePipelineApp(App):
     
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         """Handle operation selection from tree."""
-        if event.node.is_leaf:
+        # Check if it's a leaf node (has no children)
+        if not event.node.children:
             # Extract operation name from the label
             label = str(event.node.label)
             op_name = label.split(":")[0].strip()
