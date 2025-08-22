@@ -1,0 +1,49 @@
+repos:
+  # Ruff - Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.10
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Type checking - use local hook for basedpyright
+  - repo: local
+    hooks:
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run basedpyright
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [src/]
+
+  # Run tests
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: false
+        args: [-v, -x, --tb=short, -m, "not slow"]
+
+      # Run operation tests directly
+      - id: operation-tests
+        name: Quick Operation Tests
+        entry: uv run python -m
+        language: system
+        files: ^src/pipeline/operations/.*\.py$
+        pass_filenames: true
+        args: []
+
+  # Standard hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
