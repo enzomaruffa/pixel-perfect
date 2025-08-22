@@ -5,7 +5,8 @@
       "Bash(mv:*)",
       "Bash(uv run:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(PYTHONPATH=src uv run python -c \"\n# Test validation functions\nfrom utils.validation import *\nfrom utils.image import *\nfrom utils.cache import *\nfrom PIL import Image\nimport tempfile\nfrom pathlib import Path\n\nprint(''Testing validation functions...'')\nvalidate_image_dimensions(1920, 1080)\nvalidate_indices([0, 1, 2], 10)\nratio = validate_ratio_string(''16:9'')\nprint(f''✓ Ratio 16:9 = {ratio:.3f}'')\n\nchannels = validate_channel_list([''r'', ''g'', ''b''])\nprint(f''✓ Channels: {channels}'')\n\nprint(''\\nTesting image functions...'')\n# Create test image\ntest_img = Image.new(''RGB'', (10, 10), (255, 0, 0))\ncontext = create_context_from_image(test_img)\nprint(f''✓ Context: {context.width}×{context.height}, {context.channels} channels'')\n\n# Test image utilities\nrgba_img = ensure_image_mode(test_img, ''RGBA'')\nprint(f''✓ Mode conversion: {test_img.mode} -> {rgba_img.mode}'')\n\npixel = get_pixel_at_index(test_img, 0)\nprint(f''✓ Pixel at index 0: {pixel}'')\n\nmemory = calculate_memory_usage(100, 100, 4, ''uint8'')\nprint(f''✓ Memory calculation: {memory} bytes'')\n\nprint(''\\nTesting cache functions...'')\nformatted = format_bytes(1024*1024)\nprint(f''✓ Format bytes: {formatted}'')\n\nprint(''\\n✅ All utility functions working correctly!'')\n\")"
     ],
     "deny": [],
     "ask": []

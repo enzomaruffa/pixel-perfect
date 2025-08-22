@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from core.context import ImageContext
 
@@ -15,10 +15,7 @@ if TYPE_CHECKING:
 class BaseOperation(BaseModel, ABC):
     """Abstract base class for all image operations."""
 
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @abstractmethod
     def validate_operation(self, context: ImageContext) -> ImageContext:
@@ -72,7 +69,7 @@ class BaseOperation(BaseModel, ABC):
         """
         ...
 
-    def _generate_param_hash(self) -> str:
+    def generate_param_hash(self) -> str:
         """Generate hash from operation parameters."""
         import hashlib
 
