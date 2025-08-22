@@ -22,6 +22,12 @@ from utils.image import (
     paste_image_region,
     resize_image_proportional,
 )
+from utils.test_images import (
+    create_checkerboard,
+    create_gradient,
+    create_numbered_grid,
+    create_test_suite,
+)
 from utils.validation import (
     validate_channel_list,
     validate_color_tuple,
@@ -55,6 +61,11 @@ __all__ = [
     "get_pixel_at_index",
     "paste_image_region",
     "resize_image_proportional",
+    # Test image utilities
+    "create_checkerboard",
+    "create_gradient",
+    "create_numbered_grid",
+    "create_test_suite",
     # Validation utilities
     "validate_channel_list",
     "validate_color_tuple",

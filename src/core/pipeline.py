@@ -61,12 +61,16 @@ class Pipeline:
         """Load image and create initial context."""
         if self._image is None or self._context is None:
             self._image = Image.open(self.input_path)
-            # Convert to RGBA if needed
-            if self._image.mode not in ("RGBA", "RGB", "L"):
+
+            # Convert to RGB/RGBA for consistent processing
+            # Only grayscale (L) gets converted to RGB, others to RGBA if needed
+            if self._image.mode == "L":
+                self._image = self._image.convert("RGB")
+            elif self._image.mode not in ("RGB", "RGBA"):
                 self._image = self._image.convert("RGBA")
 
             # Create initial context
-            channels = {"L": 1, "RGB": 3, "RGBA": 4}[self._image.mode]
+            channels = {"RGB": 3, "RGBA": 4}[self._image.mode]
             self._context = ImageContext(
                 width=self._image.width,
                 height=self._image.height,
