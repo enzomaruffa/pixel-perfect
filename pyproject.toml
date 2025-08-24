@@ -1,18 +1,27 @@
 [project]
 name = "pixel-perfect"
 version = "0.1.0"
-description = "Add your description here"
+description = "A composable pipeline framework for sophisticated pixel-level image transformations"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.2.1",
     "numpy>=2.2.6",
     "pillow>=11.3.0",
+    "psutil>=7.0.0",
     "pydantic>=2.11.7",
+    "pytest-benchmark>=5.1.0",
+    "pytest-cov>=6.2.1",
+    "pytest-timeout>=2.4.0",
     "pyyaml>=6.0.2",
     "rich>=14.1.0",
+    "scikit-image>=0.25.2",
     "textual>=5.3.0",
 ]
+
+[project.scripts]
+pixel-perfect = "cli.main:cli"
+pixel-transform = "transform:main"
 
 [dependency-groups]
 dev = [

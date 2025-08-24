@@ -1,0 +1,117 @@
+{
+  "pixel_filter_prime": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {
+      "operation": "PixelFilter",
+      "parameters": {
+        "condition": "prime",
+        "fill_color": [
+          255,
+          0,
+          0,
+          255
+        ]
+      }
+    }
+  },
+  "block_filter_checkerboard": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "row_shift_odd": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "mosaic_average": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "channel_swap_rgb": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGB",
+    "metadata": {}
+  },
+  "dither_floyd_steinberg": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "grid_warp_horizontal": {
+    "created": true,
+    "image_size": [
+      128,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "preset_glitch_effect": {
+    "created": true,
+    "image_size": [
+      80,
+      80
+    ],
+    "image_mode": "RGBA",
+    "metadata": {
+      "preset": "glitch-effect",
+      "description": "Create a digital glitch effect with pixel filtering and row shifting"
+    }
+  },
+  "complex_artistic_pipeline": {
+    "created": true,
+    "image_size": [
+      96,
+      96
+    ],
+    "image_mode": "RGB",
+    "metadata": {
+      "pipeline": "complex_artistic",
+      "operations": [
+        "PixelFilter",
+        "BlockFilter",
+        "RowShift",
+        "ChannelSwap",
+        "Mosaic"
+      ]
+    }
+  },
+  "utils_test": {
+    "created": true,
+    "image_size": [
+      50,
+      50
+    ],
+    "image_mode": "RGBA",
+    "metadata": {
+      "test": "metadata"
+    }
+  }
+}

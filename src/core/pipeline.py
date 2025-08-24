@@ -1,9 +1,12 @@
 """Main pipeline orchestrator for image processing."""
 
 import hashlib
+import json
+import time
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import numpy as np
 from PIL import Image
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -11,52 +14,80 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import PipelineError, ValidationError
-from utils.cache_manager import CacheManager, CachePolicy
 
 console = Console()
 
 
 class Pipeline:
-    """Main orchestrator for image processing operations."""
+    """Main orchestrator for image processing operations.
+
+    Every pipeline run creates a directory with all intermediate steps saved.
+    These steps serve as both debug output and cache for future runs.
+    """
 
     def __init__(
         self,
         input_path: str | Path,
         *,
-        debug: bool = False,
-        cache_dir: str | Path | None = None,
-        cache_policy: CachePolicy | None = None,
-        enable_memory_cache: bool = True,
+        output_dir: str | Path | None = None,
+        use_cache: bool = True,
+        verbose: bool = False,
+        cache_dirs: list[str | Path] | None = None,
     ):
         """Initialize pipeline with input image.
 
         Args:
             input_path: Path to input image
-            debug: Enable debug output
-            cache_dir: Directory for caching operation results
-            cache_policy: Cache policy configuration
-            enable_memory_cache: Whether to use in-memory caching
+            output_dir: Directory to save all steps (auto-generated if None)
+            use_cache: Whether to reuse results from previous runs
+            verbose: Enable verbose console output
+            cache_dirs: Additional directories to search for cached results
         """
         self.input_path = Path(input_path)
-        self.debug = debug
+        self.verbose = verbose
+        self.use_cache = use_cache
         self.operations: list[BaseOperation] = []
         self._image: Image.Image | None = None
         self._context: ImageContext | None = None
+        self._manifest: dict[str, Any] = {
+            "input": str(input_path),
+            "timestamp": None,
+            "operations": [],
+            "cache_hits": 0,
+            "cache_misses": 0,
+        }
 
         if not self.input_path.exists():
             raise FileNotFoundError(f"Input image not found: {self.input_path}")
 
-        # Initialize cache manager if cache directory is provided
-        if cache_dir:
-            self.cache_dir = Path(cache_dir)
-            self.cache_manager = CacheManager(
-                cache_dir=cache_dir,
-                policy=cache_policy or CachePolicy(),
-                enable_memory_cache=enable_memory_cache,
-            )
+        # Set up output directory
+        if output_dir is None:
+            # Auto-generate timestamped directory
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+            self.output_dir = Path("runs") / timestamp
+            self._manifest["timestamp"] = timestamp
         else:
-            self.cache_dir = None
-            self.cache_manager = None
+            self.output_dir = Path(output_dir)
+            self._manifest["timestamp"] = datetime.now().isoformat()
+
+        # Create output directory
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set up cache directories to search
+        self.cache_dirs = []
+        if use_cache:
+            # Add previous runs as cache sources
+            runs_dir = Path("runs")
+            if runs_dir.exists():
+                self.cache_dirs.extend(sorted(runs_dir.iterdir(), reverse=True))
+
+            # Add any explicitly specified cache directories
+            if cache_dirs:
+                self.cache_dirs.extend([Path(d) for d in cache_dirs])
+
+        # Create .cache subdirectory for hash mappings
+        self.cache_index_dir = self.output_dir / ".cache"
+        self.cache_index_dir.mkdir(exist_ok=True)
 
     def add(self, operation: BaseOperation) -> "Pipeline":
         """Add an operation to the pipeline.
@@ -76,7 +107,6 @@ class Pipeline:
             self._image = Image.open(self.input_path)
 
             # Convert to RGB/RGBA for consistent processing
-            # Only grayscale (L) gets converted to RGB, others to RGBA if needed
             if self._image.mode == "L":
                 self._image = self._image.convert("RGB")
             elif self._image.mode not in ("RGB", "RGBA"):
@@ -91,68 +121,178 @@ class Pipeline:
                 dtype="uint8",
             )
 
-            if self.debug:
+            # Save original image
+            original_path = self.output_dir / "00_original.png"
+            self._image.save(original_path)
+
+            if self.verbose:
                 console.print(f"[green]Loaded image:[/green] {self.input_path}")
                 console.print(f"  Size: {self._image.width}×{self._image.height}")
                 console.print(f"  Mode: {self._image.mode}")
                 console.print(f"  Channels: {channels}")
+                console.print(f"  Output dir: {self.output_dir}")
 
         return self._image, self._context
 
     def _get_image_hash(self, image: Image.Image) -> str:
         """Generate hash for an image."""
-        # For cache consistency, we should hash the original file content
-        # rather than the processed image which might have conversion differences
-        try:
-            with open(self.input_path, "rb") as f:
-                file_content = f.read()
-            return hashlib.md5(file_content).hexdigest()
-        except Exception:
-            # Fallback to image data if file reading fails
-            arr = np.array(image)
-            return hashlib.md5(arr.tobytes()).hexdigest()
+        return hashlib.md5(image.tobytes()).hexdigest()
 
-    def _validate_pipeline(self) -> ImageContext:
-        """Run validation pass through all operations.
+    def _get_operation_cache_key(self, operation: BaseOperation, image_hash: str) -> str:
+        """Generate cache key for operation and image combination."""
+        param_hash = operation.generate_param_hash()
+        cache_data = {
+            "operation": operation.operation_name,
+            "params": param_hash,
+            "image": image_hash,
+            "version": "1.0",
+        }
+        cache_string = json.dumps(cache_data, sort_keys=True)
+        return hashlib.md5(cache_string.encode()).hexdigest()
+
+    def _find_cached_result(self, cache_key: str) -> tuple[Image.Image, ImageContext] | None:
+        """Look for cached result in cache directories."""
+        if not self.use_cache:
+            return None
+
+        for cache_dir in self.cache_dirs:
+            cache_index = cache_dir / ".cache"
+            if not cache_index.exists():
+                continue
+
+            # Check if this cache directory has the result
+            cache_ref = cache_index / cache_key
+            if cache_ref.exists():
+                # Read the reference to find the actual file
+                with open(cache_ref) as f:
+                    ref_data = json.load(f)
+                    image_file = cache_dir / ref_data["image_file"]
+                    context_file = cache_dir / ref_data["context_file"]
+
+                    if image_file.exists() and context_file.exists():
+                        # Load cached image and context
+                        image = Image.open(image_file)
+                        with open(context_file) as cf:
+                            context_data = json.load(cf)
+                            context = ImageContext(
+                                **{
+                                    k: v
+                                    for k, v in context_data.items()
+                                    if k
+                                    in [
+                                        "width",
+                                        "height",
+                                        "channels",
+                                        "dtype",
+                                        "warnings",
+                                        "metadata",
+                                    ]
+                                }
+                            )
+                        return image, context
+
+        return None
+
+    def _save_step(
+        self,
+        step_num: int,
+        operation: BaseOperation,
+        image: Image.Image,
+        context: ImageContext,
+        cache_key: str,
+    ):
+        """Save a pipeline step with both human-readable and cache-indexed names."""
+        # Save with human-readable name
+        step_name = f"{step_num:02d}_{operation.operation_name}"
+        image_file = f"{step_name}.png"
+        context_file = f"{step_name}.json"
+
+        image_path = self.output_dir / image_file
+        context_path = self.output_dir / context_file
+
+        # Save image
+        image.save(image_path)
+
+        # Save context with operation details
+        context_data = {
+            "step": step_num,
+            "operation": operation.operation_name,
+            "parameters": operation.model_dump(),
+            "width": context.width,
+            "height": context.height,
+            "channels": context.channels,
+            "dtype": context.dtype,
+            "warnings": context.warnings,
+            "metadata": context.metadata,
+            "timestamp": time.time(),
+        }
+
+        with open(context_path, "w") as f:
+            json.dump(context_data, f, indent=2)
+
+        # Create cache index entry
+        cache_ref_path = self.cache_index_dir / cache_key
+        with open(cache_ref_path, "w") as f:
+            json.dump(
+                {
+                    "image_file": image_file,
+                    "context_file": context_file,
+                    "step": step_num,
+                    "operation": operation.operation_name,
+                },
+                f,
+            )
+
+        # Add to manifest
+        self._manifest["operations"].append(
+            {
+                "step": step_num,
+                "operation": operation.operation_name,
+                "parameters": operation.model_dump(),
+                "cache_key": cache_key,
+                "files": {
+                    "image": image_file,
+                    "context": context_file,
+                },
+            }
+        )
+
+    def validate(self) -> ImageContext:
+        """Validate the pipeline without executing.
 
         Returns:
-            Final context after all validations
+            Final expected context after all operations
 
         Raises:
-            ValidationError: If any operation fails validation
+            ValidationError: If validation fails
         """
-        _, context = self._load_image()
+        image, context = self._load_image()
 
-        if self.debug:
-            console.print("\n[yellow]Running validation pass...[/yellow]")
+        if self.verbose:
+            console.print("\n[cyan]Running validation pass...[/cyan]")
 
-        for i, operation in enumerate(self.operations, 1):
+        for operation in self.operations:
             try:
                 context = operation.validate_operation(context)
-                if self.debug:
+                if self.verbose:
                     console.print(f"  ✓ {operation.operation_name} validated")
-            except Exception as e:
+            except ValidationError as e:
                 raise ValidationError(
-                    f"Validation failed at operation {i} ({operation.operation_name}): {e}"
+                    f"Validation failed for {operation.operation_name}: {e}"
                 ) from e
-
-        if context.warnings and self.debug:
-            console.print("\n[yellow]Warnings:[/yellow]")
-            for warning in context.warnings:
-                console.print(f"  ⚠ {warning}")
 
         return context
 
     def execute(
         self,
-        output_path: str | Path,
+        output_path: str | Path | None = None,
         *,
         dry_run: bool = False,
     ) -> ImageContext:
         """Execute the pipeline.
 
         Args:
-            output_path: Path to save output image
+            output_path: Path for final output (optional, defaults to output_dir/final.png)
             dry_run: Only run validation, don't process
 
         Returns:
@@ -161,39 +301,37 @@ class Pipeline:
         Raises:
             PipelineError: If execution fails
         """
-        output_path = Path(output_path)
+        # Set default output path if not provided
+        if output_path is None:
+            output_path = self.output_dir / "final.png"
+        else:
+            output_path = Path(output_path)
 
         # Validate pipeline
         try:
-            final_context = self._validate_pipeline()
+            final_context = self.validate()
         except ValidationError as e:
             raise PipelineError(f"Pipeline validation failed: {e}") from e
 
         if dry_run:
-            if self.debug:
+            if self.verbose:
                 console.print("\n[green]Dry run complete - pipeline is valid[/green]")
             return final_context
 
         # Execute operations
         image, context = self._load_image()
 
-        if self.debug:
+        if self.verbose:
             console.print("\n[cyan]Executing pipeline...[/cyan]")
-            if self.cache_manager:
-                cache_stats = self.cache_manager.get_statistics()
-                console.print(
-                    f"Cache status: {cache_stats.entry_count} entries, {cache_stats.human_readable_size}"
-                )
+            if self.use_cache:
+                console.print(f"  Cache dirs: {len(self.cache_dirs)} directories available")
 
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
-            disable=not self.debug,
+            disable=not self.verbose,
         ) as progress:
-            cache_hits = 0
-            cache_misses = 0
-
             for i, operation in enumerate(self.operations, 1):
                 task = progress.add_task(
                     f"[{i}/{len(self.operations)}] {operation.operation_name}...",
@@ -201,32 +339,31 @@ class Pipeline:
                 )
 
                 try:
-                    # Check cache if available
-                    cached_result = None
-                    if self.cache_manager:
-                        image_hash = self._get_image_hash(image)
-                        cached_result = self.cache_manager.get_cached_result(operation, image_hash)
+                    # Generate cache key
+                    image_hash = self._get_image_hash(image)
+                    cache_key = self._get_operation_cache_key(operation, image_hash)
 
-                        if cached_result is not None:
-                            cache_hits += 1
-                            image, context = cached_result
-                            if self.debug:
-                                progress.update(
-                                    task,
-                                    description=f"[{i}/{len(self.operations)}] {operation.operation_name} [green](cached)[/green]",
-                                )
-                            progress.remove_task(task)
-                            continue
+                    # Check for cached result
+                    cached_result = self._find_cached_result(cache_key)
 
-                    # Apply operation
-                    cache_misses += 1
-                    validated_context = operation.validate_operation(context)
-                    image, context = operation.apply(image, validated_context)
+                    if cached_result is not None:
+                        # Use cached result
+                        image, context = cached_result
+                        self._manifest["cache_hits"] += 1
 
-                    # Cache result if enabled
-                    if self.cache_manager:
-                        image_hash = self._get_image_hash(image)
-                        self.cache_manager.save_result(operation, image_hash, image, context)
+                        if self.verbose:
+                            progress.update(
+                                task,
+                                description=f"[{i}/{len(self.operations)}] {operation.operation_name} [green](cached)[/green]",
+                            )
+                    else:
+                        # Compute result
+                        self._manifest["cache_misses"] += 1
+                        validated_context = operation.validate_operation(context)
+                        image, context = operation.apply(image, validated_context)
+
+                    # Save step (even if cached, to have complete record)
+                    self._save_step(i, operation, image, context, cache_key)
 
                 except Exception as e:
                     raise PipelineError(
@@ -235,120 +372,42 @@ class Pipeline:
 
                 progress.remove_task(task)
 
-            # Show cache statistics if debug enabled
-            if self.debug and self.cache_manager:
-                total_ops = cache_hits + cache_misses
-                hit_rate = cache_hits / total_ops if total_ops > 0 else 0
-                console.print(
-                    f"\nCache performance: {cache_hits}/{total_ops} hits ({hit_rate:.1%})"
-                )
-
-        # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Save final output
         image.save(output_path)
+        if output_path != self.output_dir / "final.png":
+            # Also save in output_dir for consistency
+            image.save(self.output_dir / "final.png")
 
-        if self.debug:
+        # Save manifest
+        manifest_path = self.output_dir / "manifest.json"
+        self._manifest["output"] = str(output_path)
+        self._manifest["final_size"] = {"width": context.width, "height": context.height}
+
+        with open(manifest_path, "w") as f:
+            json.dump(self._manifest, f, indent=2)
+
+        if self.verbose:
+            cache_total = self._manifest["cache_hits"] + self._manifest["cache_misses"]
+            hit_rate = self._manifest["cache_hits"] / cache_total if cache_total > 0 else 0
+
             console.print("\n[green]✓ Pipeline complete![/green]")
             console.print(f"Output saved to: {output_path}")
-            console.print(f"Final size: {context.width}×{context.height}")
+            console.print(f"All steps saved in: {self.output_dir}")
+            console.print(
+                f"Cache performance: {self._manifest['cache_hits']}/{cache_total} hits ({hit_rate:.1%})"
+            )
 
         return context
 
-    def estimate_memory(self) -> int:
-        """Estimate total memory usage for the pipeline.
+    def get_pipeline_config(self) -> dict[str, Any]:
+        """Get the complete pipeline configuration.
 
         Returns:
-            Estimated memory usage in bytes
+            Dictionary with pipeline configuration
         """
-        _, context = self._load_image()
-        total_memory = context.memory_estimate
-
-        for operation in self.operations:
-            op_memory = operation.estimate_memory(context)
-            total_memory = max(total_memory, op_memory)
-            # Update context for next operation
-            context = operation.validate_operation(context)
-
-        return total_memory
-
-    def get_cache_statistics(self) -> dict | None:
-        """Get cache statistics.
-
-        Returns:
-            Cache statistics dictionary or None if caching disabled
-        """
-        if not self.cache_manager:
-            return None
-
-        return self.cache_manager.get_statistics().to_dict()
-
-    def print_cache_report(self) -> None:
-        """Print detailed cache report to console."""
-        if not self.cache_manager:
-            console.print("[yellow]Caching is not enabled[/yellow]")
-            return
-
-        report = self.cache_manager.export_cache_report()
-        console.print(report)
-
-    def cleanup_cache(self, max_age_days: int | None = None) -> int:
-        """Clean up old cache entries.
-
-        Args:
-            max_age_days: Maximum age in days (uses policy default if None)
-
-        Returns:
-            Number of entries removed
-        """
-        if not self.cache_manager:
-            return 0
-
-        return self.cache_manager.cleanup_old_entries(max_age_days)
-
-    def clear_cache(self) -> int:
-        """Clear all cache entries.
-
-        Returns:
-            Number of entries removed
-        """
-        if not self.cache_manager:
-            return 0
-
-        return self.cache_manager.clear_cache()
-
-    def warm_cache(self, test_images: list[Image.Image] | None = None) -> dict:
-        """Pre-populate cache with operation results.
-
-        Args:
-            test_images: Optional list of test images
-
-        Returns:
-            Dict with warming statistics
-        """
-        if not self.cache_manager:
-            return {"warmed": 0, "errors": 0}
-
-        return self.cache_manager.warm_cache(self.operations, test_images)
-
-    def set_cache_size_limit(self, max_size_bytes: int) -> None:
-        """Set cache size limit.
-
-        Args:
-            max_size_bytes: Maximum cache size in bytes
-        """
-        if self.cache_manager:
-            self.cache_manager.set_size_limit(max_size_bytes)
-
-    def invalidate_cache_pattern(self, pattern: str) -> int:
-        """Invalidate cache entries matching pattern.
-
-        Args:
-            pattern: Glob pattern to match cache keys
-
-        Returns:
-            Number of entries invalidated
-        """
-        if not self.cache_manager:
-            return 0
-
-        return self.cache_manager.invalidate_pattern(pattern)
+        return {
+            "input": str(self.input_path),
+            "operations": [
+                {"type": op.__class__.__name__, "params": op.model_dump()} for op in self.operations
+            ],
+        }

@@ -13,7 +13,13 @@
       "Bash(PYTHONPATH=src uv run python:*)",
       "Bash(git rm:*)",
       "Bash(PYTHONPATH=src uv run ruff check --no-fix src/operations/test_geometric.py)",
-      "Bash(uv add:*)"
+      "Bash(uv add:*)",
+      "Bash(PYTHONPATH=src uv run pytest tests/integration/test_pipelines.py::TestEndToEndPipelines::test_artistic_glitch_pipeline -v)",
+      "Bash(md5sum:*)",
+      "Bash(uv pip install:*)",
+      "Bash(PYTHONPATH=src uv run pytest tests/ -v --tb=short)",
+      "Bash(PYTHONPATH=src uv run pytest tests/integration/test_simple.py -v)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
