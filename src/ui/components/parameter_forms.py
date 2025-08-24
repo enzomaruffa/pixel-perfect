@@ -45,6 +45,7 @@ def render_operation_parameter_editor():
                 update_operation_parameters(operation_config["id"], validated_params.model_dump())
                 st.success("✅ Parameters updated successfully!")
                 st.session_state.selected_operation_for_editing = None
+                st.session_state.parameters_changed = True  # Trigger auto-execution
                 st.rerun()
             else:
                 st.error("Could not validate parameters - no Pydantic model found")
@@ -66,6 +67,7 @@ def render_operation_parameter_editor():
             update_operation_parameters(operation_config["id"], op_info["default_params"])
             st.success("🔄 Parameters reset to defaults!")
             st.session_state.selected_operation_for_editing = None
+            st.session_state.parameters_changed = True  # Trigger auto-execution
             st.rerun()
 
     elif cancel_editing:
@@ -116,12 +118,14 @@ def render_pipeline_with_edit_buttons():
             )
             if new_enabled != op_config["enabled"]:
                 st.session_state.pipeline_operations[i]["enabled"] = new_enabled
+                st.session_state.parameters_changed = True  # Trigger auto-execution
                 st.rerun()
 
         with col4:
             # Remove button
             if st.button("🗑️", key=f"remove_{op_config['id']}", help="Remove from pipeline"):
                 st.session_state.pipeline_operations.pop(i)
+                st.session_state.parameters_changed = True  # Trigger auto-execution
                 st.rerun()
 
         # Show current parameter summary
@@ -133,6 +137,7 @@ def render_pipeline_with_edit_buttons():
     # Clear all button
     if st.button("🗑️ Clear All", help="Remove all operations from pipeline"):
         st.session_state.pipeline_operations = []
+        st.session_state.parameters_changed = True  # Trigger auto-execution
         st.rerun()
 
 

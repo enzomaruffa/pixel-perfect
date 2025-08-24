@@ -151,6 +151,9 @@ def add_operation_to_pipeline(op_info: dict):
     # Add to pipeline
     st.session_state.pipeline_operations.append(operation_config)
 
+    # Trigger auto-execution
+    st.session_state.parameters_changed = True
+
     # Show success message
     st.success(f"✅ Added {op_info['name']} to pipeline!")
 

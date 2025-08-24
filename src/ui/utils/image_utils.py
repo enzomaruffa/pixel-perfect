@@ -35,7 +35,7 @@ def validate_uploaded_image(uploaded_file) -> bool:
         uploaded_file.seek(0)  # Reset file pointer after verify
         return True
     except Exception as e:
-        raise ValueError(f"Invalid image file: {str(e)}")
+        raise ValueError(f"Invalid image file: {str(e)}") from e
 
 
 def optimize_image_for_display(
