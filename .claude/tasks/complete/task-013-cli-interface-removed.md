@@ -1,6 +1,8 @@
-# Task 013: CLI Interface and Configuration
+# Task 013: CLI Interface and Configuration [REMOVED]
 
-## Objective
+## Status: REMOVED - Replaced with Streamlit UI (Tasks 016-021)
+
+## Original Objective
 Create a comprehensive command-line interface for the pixel-perfect framework with configuration management and user-friendly operation.
 
 ## Requirements

@@ -16,11 +16,9 @@ dependencies = [
     "pyyaml>=6.0.2",
     "rich>=14.1.0",
     "scikit-image>=0.25.2",
-    "textual>=5.3.0",
 ]
 
 [project.scripts]
-pixel-perfect = "cli.main:cli"
 pixel-transform = "transform:main"
 
 [dependency-groups]

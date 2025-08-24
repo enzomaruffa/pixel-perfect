@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Backward compatibility wrapper for main CLI."""
+"""Backward compatibility wrapper - now points to transform CLI."""
 
 import subprocess
 import sys
 
 if __name__ == "__main__":
     # Use the installed package entry point
-    sys.exit(subprocess.call(["uv", "run", "pixel-perfect"] + sys.argv[1:]))
+    sys.exit(subprocess.call(["uv", "run", "pixel-transform"] + sys.argv[1:]))

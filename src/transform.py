@@ -129,17 +129,23 @@ def apply_preset(preset_name: str, input_path: str, output_dir: str | None = Non
 
         if op_type in operation_map:
             # Handle special parameter conversions
-            if op_type == "Mosaic" and "tile_size" in op_params:
+            if (
+                op_type == "Mosaic"
+                and "tile_size" in op_params
+                and isinstance(op_params["tile_size"], int)
+            ):
                 # Ensure tile_size is a tuple
-                if isinstance(op_params["tile_size"], int):
-                    op_params["tile_size"] = (op_params["tile_size"], op_params["tile_size"])
+                op_params["tile_size"] = (op_params["tile_size"], op_params["tile_size"])
 
-            if op_type == "BlockFilter" and "block_size" in op_params:
+            if (
+                op_type == "BlockFilter"
+                and "block_size" in op_params
+                and isinstance(op_params["block_size"], int)
+            ):
                 # Convert block_size to block_width and block_height
-                if isinstance(op_params["block_size"], int):
-                    op_params["block_width"] = op_params["block_size"]
-                    op_params["block_height"] = op_params["block_size"]
-                    del op_params["block_size"]
+                op_params["block_width"] = op_params["block_size"]
+                op_params["block_height"] = op_params["block_size"]
+                del op_params["block_size"]
 
             # Create and add operation
             operation = operation_map[op_type](**op_params)

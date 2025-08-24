@@ -19,7 +19,9 @@
       "Bash(uv pip install:*)",
       "Bash(PYTHONPATH=src uv run pytest tests/ -v --tb=short)",
       "Bash(PYTHONPATH=src uv run pytest tests/integration/test_simple.py -v)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(PYTHONPATH=src uv run ruff check src/__init__.py src/transform.py --no-fix)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
