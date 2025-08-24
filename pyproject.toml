@@ -16,10 +16,12 @@ dependencies = [
     "pyyaml>=6.0.2",
     "rich>=14.1.0",
     "scikit-image>=0.25.2",
+    "streamlit>=1.48.1",
 ]
 
 [project.scripts]
 pixel-transform = "transform:main"
+pixel-perfect-ui = "ui.streamlit_app:main"
 
 [dependency-groups]
 dev = [

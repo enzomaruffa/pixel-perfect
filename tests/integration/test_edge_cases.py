@@ -29,7 +29,7 @@ class TestImageEdgeCases:
         # Test various operations on minimal image
         pipeline = Pipeline(str(input_path))
         context = (
-            pipeline.add(PixelFilter(condition="all", fill_color=(255, 0, 0, 255)))
+            pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255)))
             .add(RowShift(selection="all", shift_amount=0))  # No-op shift
             .add(
                 ChannelSwap(red_source="red", green_source="green", blue_source="blue")

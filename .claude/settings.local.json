@@ -21,7 +21,9 @@
       "Bash(PYTHONPATH=src uv run pytest tests/integration/test_simple.py -v)",
       "Bash(find:*)",
       "Bash(PYTHONPATH=src uv run ruff check src/__init__.py src/transform.py --no-fix)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(chmod:*)",
+      "Bash(timeout 10 uv run streamlit run:*)"
     ],
     "deny": [],
     "ask": []
