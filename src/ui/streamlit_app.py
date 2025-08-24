@@ -33,6 +33,28 @@ def main():
         },
     )
 
+    # Custom CSS for wider sidebar
+    st.markdown(
+        """
+    <style>
+        /* Make sidebar wider for better usability */
+        .css-1d391kg {width: 400px !important;}
+        .css-1cyp50f {min-width: 400px !important; max-width: 400px !important;}
+
+        /* Adjust main content margin */
+        .main .block-container {margin-left: 420px;}
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            .css-1d391kg {width: 350px !important;}
+            .css-1cyp50f {min-width: 350px !important; max-width: 350px !important;}
+            .main .block-container {margin-left: 370px;}
+        }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
     # Initialize session state
     initialize_session_state()
 

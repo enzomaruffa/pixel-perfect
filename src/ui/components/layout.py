@@ -2,7 +2,9 @@
 
 import streamlit as st
 
-from ui.components.image_viewer import render_image_display, render_image_upload
+from ui.components.image_comparison import render_comparison_analysis
+from ui.components.image_display import render_advanced_image_display
+from ui.components.image_viewer import render_image_upload
 from ui.components.pipeline_executor import get_pipeline_executor
 from ui.components.session import get_pipeline_summary, reset_all, reset_pipeline
 
@@ -104,8 +106,13 @@ def render_main_content():
         """)
         return
 
-    # Image display
-    render_image_display()
+    # Advanced image display
+    render_advanced_image_display()
+
+    # Advanced comparison analysis (if both images available)
+    if st.session_state.get("original_image") and st.session_state.get("processed_image"):
+        with st.expander("🔍 Advanced Comparison Analysis", expanded=False):
+            render_comparison_analysis()
 
     # Real-time pipeline execution section
     if st.session_state.pipeline_operations:
