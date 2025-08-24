@@ -228,38 +228,7 @@ def render_operation_details_modal():
 def render_pipeline_summary():
     """Render a summary of operations in the current pipeline."""
 
-    if not st.session_state.get("pipeline_operations"):
-        st.info("No operations in pipeline yet. Add some operations to get started!")
-        return
+    # Use the enhanced pipeline renderer from parameter_forms
+    from ui.components.parameter_forms import render_pipeline_with_edit_buttons
 
-    st.subheader("🔗 Current Pipeline")
-
-    operations = st.session_state.pipeline_operations
-
-    for i, op_config in enumerate(operations):
-        col1, col2, col3 = st.columns([2, 1, 1])
-
-        with col1:
-            # Operation info
-            enabled_icon = "✅" if op_config["enabled"] else "❌"
-            st.write(f"{i + 1}. {enabled_icon} **{op_config['name']}**")
-
-        with col2:
-            # Enable/disable toggle
-            new_enabled = st.checkbox(
-                "Enabled", value=op_config["enabled"], key=f"enable_{op_config['id']}"
-            )
-            if new_enabled != op_config["enabled"]:
-                st.session_state.pipeline_operations[i]["enabled"] = new_enabled
-                st.rerun()
-
-        with col3:
-            # Remove button
-            if st.button("🗑️", key=f"remove_{op_config['id']}", help="Remove from pipeline"):
-                st.session_state.pipeline_operations.pop(i)
-                st.rerun()
-
-    # Clear all button
-    if st.button("🗑️ Clear All", help="Remove all operations from pipeline"):
-        st.session_state.pipeline_operations = []
-        st.rerun()
+    render_pipeline_with_edit_buttons()

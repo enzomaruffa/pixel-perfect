@@ -71,8 +71,14 @@ def render_main_content():
 
     # Handle operation details modal
     from ui.components.operation_browser import render_operation_details_modal
+    from ui.components.parameter_forms import render_operation_parameter_editor
 
     render_operation_details_modal()
+
+    # Check if we're editing operation parameters
+    if st.session_state.get("selected_operation_for_editing"):
+        render_operation_parameter_editor()
+        return
 
     # Check if we have an image
     if not st.session_state.original_image:

@@ -361,7 +361,9 @@ def get_all_operations():
     return operations
 
 
-def search_operations(query: str, categories: list[str] | None = None, difficulty: str | None = None):
+def search_operations(
+    query: str, categories: list[str] | None = None, difficulty: str | None = None
+):
     """Search operations by name, description, or tags."""
     query = query.lower()
     results = []

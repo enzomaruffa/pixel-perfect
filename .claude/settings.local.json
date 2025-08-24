@@ -23,7 +23,8 @@
       "Bash(PYTHONPATH=src uv run ruff check src/__init__.py src/transform.py --no-fix)",
       "WebSearch",
       "Bash(chmod:*)",
-      "Bash(timeout 10 uv run streamlit run:*)"
+      "Bash(timeout 10 uv run streamlit run:*)",
+      "Bash(PYTHONPATH=src uv run pytest tests/integration/test_edge_cases.py::TestImageEdgeCases::test_minimal_image_operations -xvs)"
     ],
     "deny": [],
     "ask": []
