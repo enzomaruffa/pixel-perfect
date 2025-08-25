@@ -78,17 +78,17 @@ class PipelineFlowVisualizer:
         for i, step in enumerate(self.steps):
             with cols[i + 1]:
                 step_thumb = optimize_image_for_display(
-                    step.result_image,
+                    step["result_image"],
                     max_size=(thumbnail_size, thumbnail_size)
                 )
                 st.image(step_thumb, caption=f"Step {i+1}")
 
                 # Step info
-                st.markdown(f"**{step.operation_name}**")
+                st.markdown(f"**{step['operation_name']}**")
 
                 if show_metrics:
-                    render_status_badge(f"{step.execution_time:.2f}s", "info")
-                    if step.cached:
+                    render_status_badge(f"{step['execution_time']:.2f}s", "info")
+                    if step.get("cached", False):
                         render_status_badge("Cached", "success")
 
                 # Click to inspect
@@ -123,7 +123,7 @@ class PipelineFlowVisualizer:
 
             with col1:
                 step_thumb = optimize_image_for_display(
-                    step.result_image,
+                    step["result_image"],
                     max_size=(thumbnail_size, thumbnail_size)
                 )
                 st.image(step_thumb)
@@ -133,25 +133,25 @@ class PipelineFlowVisualizer:
                     st.rerun()
 
             with col2:
-                st.markdown(f"### {i+1}. {step.operation_name}")
+                st.markdown(f"### {i+1}. {step['operation_name']}")
 
                 col_a, col_b, col_c = st.columns(3)
                 with col_a:
-                    st.metric("Time", f"{step.execution_time:.3f}s")
+                    st.metric("Time", f"{step['execution_time']:.3f}s")
                 with col_b:
-                    st.metric("Width", step.result_image.width)
+                    st.metric("Width", step["result_image"].width)
                 with col_c:
-                    st.metric("Height", step.result_image.height)
+                    st.metric("Height", step["result_image"].height)
 
                 if show_metrics:
                     with st.expander("📊 Step Details"):
-                        st.write(f"**Cached**: {'Yes' if step.cached else 'No'}")
-                        st.write(f"**Mode**: {step.result_image.mode}")
+                        st.write(f"**Cached**: {'Yes' if step.get('cached', False) else 'No'}")
+                        st.write(f"**Mode**: {step['result_image'].mode}")
 
                         # Calculate change from previous step
                         prev_image = (st.session_state.original_image if i == 0
-                                    else self.steps[i-1].result_image)
-                        self._display_step_impact(step.result_image, prev_image)
+                                    else self.steps[i-1]["result_image"])
+                        self._display_step_impact(step["result_image"], prev_image)
 
             if i < len(self.steps) - 1:
                 st.markdown("↓")
@@ -173,8 +173,8 @@ class PipelineFlowVisualizer:
 
         for i, step in enumerate(self.steps):
             all_images.append({
-                'image': step.result_image,
-                'title': f"Step {i+1}: {step.operation_name}",
+                'image': step["result_image"],
+                'title': f"Step {i+1}: {step['operation_name']}",
                 'index': i,
                 'is_step': True,
                 'step': step
@@ -203,8 +203,8 @@ class PipelineFlowVisualizer:
 
                         if item['is_step'] and show_metrics:
                             step = item['step']
-                            render_status_badge(f"{step.execution_time:.2f}s", "info")
-                            if step.cached:
+                            render_status_badge(f"{step['execution_time']:.2f}s", "info")
+                            if step.get('cached', False):
                                 render_status_badge("Cached", "success")
 
                         if st.button("🔍", key=f"grid_inspect_{img_idx}"):
@@ -224,7 +224,7 @@ class PipelineFlowVisualizer:
             return
 
         # Step selection for comparison
-        step_options = ["Original"] + [f"Step {i+1}: {step.operation_name}"
+        step_options = ["Original"] + [f"Step {i+1}: {step['operation_name']}"
                                      for i, step in enumerate(self.steps)]
 
         col1, col2 = st.columns(2)
@@ -241,13 +241,13 @@ class PipelineFlowVisualizer:
                 image_a = st.session_state.original_image
             else:
                 idx_a = int(step_a.split(":")[0].split(" ")[1]) - 1
-                image_a = self.steps[idx_a].result_image
+                image_a = self.steps[idx_a]["result_image"]
 
             if step_b == "Original":
                 image_b = st.session_state.original_image
             else:
                 idx_b = int(step_b.split(":")[0].split(" ")[1]) - 1
-                image_b = self.steps[idx_b].result_image
+                image_b = self.steps[idx_b]["result_image"]
 
             # Side-by-side comparison
             col1, col2 = st.columns(2)
@@ -363,23 +363,23 @@ class StepInspector:
         """Render inspector for a specific pipeline step."""
         step_num = self.step_index + 1
 
-        render_section_header(f"Step {step_num}: {step.operation_name}", "🔍")
+        render_section_header(f"Step {step_num}: {step['operation_name']}", "🔍")
 
         col1, col2 = st.columns([2, 1])
 
         with col1:
-            st.image(step.result_image, caption=f"Step {step_num} Result", use_container_width=True)
+            st.image(step["result_image"], caption=f"Step {step_num} Result", use_container_width=True)
 
         with col2:
             st.markdown("**Step Properties**")
-            st.metric("Operation", step.operation_name)
-            st.metric("Execution Time", f"{step.execution_time:.3f}s")
-            st.metric("Cached", "Yes" if step.cached else "No")
+            st.metric("Operation", step["operation_name"])
+            st.metric("Execution Time", f"{step['execution_time']:.3f}s")
+            st.metric("Cached", "Yes" if step.get('cached', False) else "No")
 
             st.markdown("**Result Properties**")
-            st.metric("Width", f"{step.result_image.width} px")
-            st.metric("Height", f"{step.result_image.height} px")
-            st.metric("Mode", step.result_image.mode)
+            st.metric("Width", f"{step['result_image'].width} px")
+            st.metric("Height", f"{step['result_image'].height} px")
+            st.metric("Mode", step['result_image'].mode)
 
         # Operation parameters (if available)
         if hasattr(step, 'parameters'):
@@ -393,9 +393,9 @@ class StepInspector:
             st.markdown("**Comparison with Previous Step**")
 
             prev_image = (st.session_state.original_image if self.step_index == 0
-                         else self.steps[self.step_index - 1].result_image)
+                         else self.steps[self.step_index - 1]["result_image"])
 
-            self._render_step_comparison(step.result_image, prev_image)
+            self._render_step_comparison(step["result_image"], prev_image)
 
     def _render_step_comparison(self, current_image: Image.Image, previous_image: Image.Image):
         """Render comparison between current step and previous."""
