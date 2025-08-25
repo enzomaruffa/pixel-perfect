@@ -254,36 +254,41 @@ class PixelFilter(BaseOperation):
             return self._create_linear_mask(width, height)
 
     def _is_prime_vectorized(self, numbers: np.ndarray) -> np.ndarray:
-        """Vectorized prime number check."""
-        # Handle edge cases
+        """Vectorized prime number check using sieve for efficiency."""
         result = np.zeros_like(numbers, dtype=bool)
 
-        # 2 is prime
-        result[numbers == 2] = True
+        # Handle edge cases
+        if numbers.size == 0:
+            return result
 
-        # Numbers > 2
-        mask = numbers > 2
-        n = numbers[mask]
+        # Get unique values to avoid redundant checks
+        unique_nums = np.unique(numbers.flatten())
+        unique_nums = unique_nums[unique_nums > 0]  # Only positive numbers
 
-        # Even numbers > 2 are not prime
-        odd_mask = n % 2 == 1
-        n_odd = n[odd_mask]
+        if len(unique_nums) == 0:
+            return result
 
-        # Check odd numbers for primality
-        if len(n_odd) > 0:
-            # Simple trial division for small numbers
-            for num in n_odd:
-                if num <= 1:
-                    continue
-                is_prime = True
-                for i in range(3, int(num**0.5) + 1, 2):
-                    if num % i == 0:
-                        is_prime = False
-                        break
-                if is_prime:
-                    result[numbers == num] = True
+        max_val = int(np.max(unique_nums))
 
-        return result
+        if max_val < 2:
+            return result
+
+        # Use sieve of Eratosthenes for efficiency
+        sieve = np.ones(max_val + 1, dtype=bool)
+        sieve[0:2] = False  # 0 and 1 are not prime
+
+        # Sieve algorithm - much faster than trial division
+        for i in range(2, int(max_val**0.5) + 1):
+            if sieve[i]:
+                sieve[i * i : max_val + 1 : i] = False
+
+        # Map back to original array
+        flat_numbers = numbers.flatten().astype(int)
+        valid_mask = (flat_numbers >= 0) & (flat_numbers <= max_val)
+        flat_result = np.zeros_like(flat_numbers, dtype=bool)
+        flat_result[valid_mask] = sieve[flat_numbers[valid_mask]]
+
+        return flat_result.reshape(numbers.shape)
 
     def _is_fibonacci_vectorized(self, numbers: np.ndarray) -> np.ndarray:
         """Vectorized Fibonacci number check."""
@@ -571,24 +576,51 @@ class PixelSort(BaseOperation):
         elif self.sort_by == "blue":
             return pixels[:, 2]
         elif self.sort_by == "hue":
-            # Convert to HSV and use hue
-            from colorsys import rgb_to_hsv
+            # Vectorized RGB to HSV conversion for hue
+            rgb_normalized = pixels[:, :3] / 255.0
+            v_max = np.max(rgb_normalized, axis=1)
+            v_min = np.min(rgb_normalized, axis=1)
+            delta = v_max - v_min
 
-            hues = []
-            for pixel in pixels:
-                r, g, b = pixel[0] / 255.0, pixel[1] / 255.0, pixel[2] / 255.0
-                h, s, v = rgb_to_hsv(r, g, b)
-                hues.append(h)
-            return np.array(hues)
+            # Calculate hue (vectorized)
+            hue = np.zeros(len(pixels))
+
+            # Where delta is 0, hue is undefined (set to 0)
+            non_zero_delta = delta != 0
+
+            # Red is max
+            red_max = (v_max == rgb_normalized[:, 0]) & non_zero_delta
+            hue[red_max] = (
+                (rgb_normalized[red_max, 1] - rgb_normalized[red_max, 2]) / delta[red_max]
+            ) % 6
+
+            # Green is max
+            green_max = (v_max == rgb_normalized[:, 1]) & non_zero_delta
+            hue[green_max] = (
+                2.0
+                + (rgb_normalized[green_max, 2] - rgb_normalized[green_max, 0]) / delta[green_max]
+            )
+
+            # Blue is max
+            blue_max = (v_max == rgb_normalized[:, 2]) & non_zero_delta
+            hue[blue_max] = (
+                4.0 + (rgb_normalized[blue_max, 0] - rgb_normalized[blue_max, 1]) / delta[blue_max]
+            )
+
+            return hue / 6.0  # Normalize to [0, 1]
+
         elif self.sort_by == "saturation":
-            # Convert to HSV and use saturation
-            from colorsys import rgb_to_hsv
+            # Vectorized RGB to HSV conversion for saturation
+            rgb_normalized = pixels[:, :3] / 255.0
+            v_max = np.max(rgb_normalized, axis=1)
+            v_min = np.min(rgb_normalized, axis=1)
+            delta = v_max - v_min
 
-            saturations = []
-            for pixel in pixels:
-                r, g, b = pixel[0] / 255.0, pixel[1] / 255.0, pixel[2] / 255.0
-                h, s, v = rgb_to_hsv(r, g, b)
-                saturations.append(s)
-            return np.array(saturations)
+            # Calculate saturation (vectorized)
+            saturation = np.zeros(len(pixels))
+            non_zero_max = v_max != 0
+            saturation[non_zero_max] = delta[non_zero_max] / v_max[non_zero_max]
+
+            return saturation
         else:
             raise ProcessingError(f"Unknown sort criteria: {self.sort_by}")
