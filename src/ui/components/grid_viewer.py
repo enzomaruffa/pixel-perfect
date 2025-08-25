@@ -400,10 +400,10 @@ def render_grid_viewer():
     ):
         for i, step in enumerate(st.session_state.last_execution_result.steps):
             grid.add_image(
-                step["result_image"],
-                f"Step {i + 1}: {step['operation_name']}",
+                step["image"],
+                f"Step {i + 1}: {step['operation']}",
                 {
-                    "operation": step["operation_name"],
+                    "operation": step["operation"],
                     "execution_time": f"{step['execution_time']:.3f}s",
                     "cached": "Yes" if step.get("cached", False) else "No",
                 },
@@ -435,7 +435,7 @@ def render_fullscreen_viewer():
         and st.session_state.last_execution_result.steps
     ):
         step_names = [
-            f"Step {i + 1}: {step['operation_name']}"
+            f"Step {i + 1}: {step['operation']}"
             for i, step in enumerate(st.session_state.last_execution_result.steps)
         ]
         view_options.extend(step_names)
@@ -453,7 +453,7 @@ def render_fullscreen_viewer():
         # Step image
         step_index = int(selected_view.split(":")[0].split(" ")[1]) - 1
         step = st.session_state.last_execution_result.steps[step_index]
-        image = step["result_image"]
+        image = step["image"]
         title = selected_view
 
     # Render full-screen viewer

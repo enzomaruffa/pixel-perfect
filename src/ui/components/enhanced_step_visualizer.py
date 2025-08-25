@@ -31,7 +31,7 @@ class PipelineFlowVisualizer:
             layout_mode = st.selectbox(
                 "Layout Mode",
                 ["Horizontal Flow", "Vertical Stack", "Grid Layout"],
-                help="How to display the pipeline steps"
+                help="How to display the pipeline steps",
             )
 
         with col2:
@@ -39,7 +39,7 @@ class PipelineFlowVisualizer:
                 "Thumbnail Size",
                 options=[80, 120, 160, 200],
                 value=120,
-                help="Size of step thumbnails"
+                help="Size of step thumbnails",
             )
 
         with col3:
@@ -68,8 +68,7 @@ class PipelineFlowVisualizer:
         with cols[0]:
             if st.session_state.get("original_image"):
                 original_thumb = optimize_image_for_display(
-                    st.session_state.original_image,
-                    max_size=(thumbnail_size, thumbnail_size)
+                    st.session_state.original_image, max_size=(thumbnail_size, thumbnail_size)
                 )
                 st.image(original_thumb, caption="Original")
                 st.markdown("🏁 **Start**")
@@ -78,13 +77,12 @@ class PipelineFlowVisualizer:
         for i, step in enumerate(self.steps):
             with cols[i + 1]:
                 step_thumb = optimize_image_for_display(
-                    step["result_image"],
-                    max_size=(thumbnail_size, thumbnail_size)
+                    step["image"], max_size=(thumbnail_size, thumbnail_size)
                 )
-                st.image(step_thumb, caption=f"Step {i+1}")
+                st.image(step_thumb, caption=f"Step {i + 1}")
 
                 # Step info
-                st.markdown(f"**{step['operation_name']}**")
+                st.markdown(f"**{step['operation']}**")
 
                 if show_metrics:
                     render_status_badge(f"{step['execution_time']:.2f}s", "info")
@@ -105,8 +103,7 @@ class PipelineFlowVisualizer:
         with col1:
             if st.session_state.get("original_image"):
                 original_thumb = optimize_image_for_display(
-                    st.session_state.original_image,
-                    max_size=(thumbnail_size, thumbnail_size)
+                    st.session_state.original_image, max_size=(thumbnail_size, thumbnail_size)
                 )
                 st.image(original_thumb)
         with col2:
@@ -123,8 +120,7 @@ class PipelineFlowVisualizer:
 
             with col1:
                 step_thumb = optimize_image_for_display(
-                    step["result_image"],
-                    max_size=(thumbnail_size, thumbnail_size)
+                    step["image"], max_size=(thumbnail_size, thumbnail_size)
                 )
                 st.image(step_thumb)
 
@@ -133,25 +129,28 @@ class PipelineFlowVisualizer:
                     st.rerun()
 
             with col2:
-                st.markdown(f"### {i+1}. {step['operation_name']}")
+                st.markdown(f"### {i + 1}. {step['operation']}")
 
                 col_a, col_b, col_c = st.columns(3)
                 with col_a:
                     st.metric("Time", f"{step['execution_time']:.3f}s")
                 with col_b:
-                    st.metric("Width", step["result_image"].width)
+                    st.metric("Width", step["image"].width)
                 with col_c:
-                    st.metric("Height", step["result_image"].height)
+                    st.metric("Height", step["image"].height)
 
                 if show_metrics:
                     with st.expander("📊 Step Details"):
                         st.write(f"**Cached**: {'Yes' if step.get('cached', False) else 'No'}")
-                        st.write(f"**Mode**: {step['result_image'].mode}")
+                        st.write(f"**Mode**: {step['image'].mode}")
 
                         # Calculate change from previous step
-                        prev_image = (st.session_state.original_image if i == 0
-                                    else self.steps[i-1]["result_image"])
-                        self._display_step_impact(step["result_image"], prev_image)
+                        prev_image = (
+                            st.session_state.original_image
+                            if i == 0
+                            else self.steps[i - 1]["result_image"]
+                        )
+                        self._display_step_impact(step["image"], prev_image)
 
             if i < len(self.steps) - 1:
                 st.markdown("↓")
@@ -164,21 +163,25 @@ class PipelineFlowVisualizer:
         all_images = []
 
         if st.session_state.get("original_image"):
-            all_images.append({
-                'image': st.session_state.original_image,
-                'title': 'Original',
-                'index': -1,
-                'is_step': False
-            })
+            all_images.append(
+                {
+                    "image": st.session_state.original_image,
+                    "title": "Original",
+                    "index": -1,
+                    "is_step": False,
+                }
+            )
 
         for i, step in enumerate(self.steps):
-            all_images.append({
-                'image': step["result_image"],
-                'title': f"Step {i+1}: {step['operation_name']}",
-                'index': i,
-                'is_step': True,
-                'step': step
-            })
+            all_images.append(
+                {
+                    "image": step["image"],
+                    "title": f"Step {i + 1}: {step['operation']}",
+                    "index": i,
+                    "is_step": True,
+                    "step": step,
+                }
+            )
 
         # Grid display
         grid_cols = min(4, len(all_images))
@@ -195,21 +198,20 @@ class PipelineFlowVisualizer:
 
                     with cols[col_idx]:
                         thumb = optimize_image_for_display(
-                            item['image'],
-                            max_size=(thumbnail_size, thumbnail_size)
+                            item["image"], max_size=(thumbnail_size, thumbnail_size)
                         )
                         st.image(thumb)
                         st.markdown(f"**{item['title']}**")
 
-                        if item['is_step'] and show_metrics:
-                            step = item['step']
+                        if item["is_step"] and show_metrics:
+                            step = item["step"]
                             render_status_badge(f"{step['execution_time']:.2f}s", "info")
-                            if step.get('cached', False):
+                            if step.get("cached", False):
                                 render_status_badge("Cached", "success")
 
                         if st.button("🔍", key=f"grid_inspect_{img_idx}"):
-                            if item['is_step']:
-                                st.session_state.selected_step_for_inspection = item['index']
+                            if item["is_step"]:
+                                st.session_state.selected_step_for_inspection = item["index"]
                             else:
                                 st.session_state.selected_step_for_inspection = -1
                             st.rerun()
@@ -224,8 +226,9 @@ class PipelineFlowVisualizer:
             return
 
         # Step selection for comparison
-        step_options = ["Original"] + [f"Step {i+1}: {step['operation_name']}"
-                                     for i, step in enumerate(self.steps)]
+        step_options = ["Original"] + [
+            f"Step {i + 1}: {step['operation']}" for i, step in enumerate(self.steps)
+        ]
 
         col1, col2 = st.columns(2)
 
@@ -266,13 +269,17 @@ class PipelineFlowVisualizer:
     def _display_step_impact(self, current_image: Image.Image, previous_image: Image.Image):
         """Display the impact of a step on the image."""
         # Basic change detection
-        size_change = (current_image.width != previous_image.width or
-                      current_image.height != previous_image.height)
+        size_change = (
+            current_image.width != previous_image.width
+            or current_image.height != previous_image.height
+        )
         mode_change = current_image.mode != previous_image.mode
 
         changes = []
         if size_change:
-            changes.append(f"Size: {previous_image.width}×{previous_image.height} → {current_image.width}×{current_image.height}")
+            changes.append(
+                f"Size: {previous_image.width}×{previous_image.height} → {current_image.width}×{current_image.height}"
+            )
         if mode_change:
             changes.append(f"Mode: {previous_image.mode} → {current_image.mode}")
 
@@ -283,8 +290,9 @@ class PipelineFlowVisualizer:
         else:
             st.write("**Changes:** Pixel values modified")
 
-    def _calculate_step_differences(self, image_a: Image.Image, image_b: Image.Image,
-                                  name_a: str, name_b: str):
+    def _calculate_step_differences(
+        self, image_a: Image.Image, image_b: Image.Image, name_a: str, name_b: str
+    ):
         """Calculate and display differences between two steps."""
         # Import here to avoid circular imports
         try:
@@ -305,8 +313,10 @@ class PipelineFlowVisualizer:
             with col3:
                 st.metric("PSNR", f"{comparison.get('psnr', 0):.2f}")
 
-            if 'diff_image' in comparison:
-                st.image(comparison['diff_image'], caption="Visual Difference", use_container_width=True)
+            if "diff_image" in comparison:
+                st.image(
+                    comparison["diff_image"], caption="Visual Difference", use_container_width=True
+                )
 
         except Exception as e:
             st.error(f"Failed to calculate comparison: {e}")
@@ -355,7 +365,7 @@ class StepInspector:
 
             # File size estimation
             img_bytes = io.BytesIO()
-            image.save(img_bytes, format='PNG')
+            image.save(img_bytes, format="PNG")
             file_size = len(img_bytes.getvalue())
             st.metric("Size", f"{file_size:,} bytes")
 
@@ -363,26 +373,26 @@ class StepInspector:
         """Render inspector for a specific pipeline step."""
         step_num = self.step_index + 1
 
-        render_section_header(f"Step {step_num}: {step['operation_name']}", "🔍")
+        render_section_header(f"Step {step_num}: {step['operation']}", "🔍")
 
         col1, col2 = st.columns([2, 1])
 
         with col1:
-            st.image(step["result_image"], caption=f"Step {step_num} Result", use_container_width=True)
+            st.image(step["image"], caption=f"Step {step_num} Result", use_container_width=True)
 
         with col2:
             st.markdown("**Step Properties**")
-            st.metric("Operation", step["operation_name"])
+            st.metric("Operation", step["operation"])
             st.metric("Execution Time", f"{step['execution_time']:.3f}s")
-            st.metric("Cached", "Yes" if step.get('cached', False) else "No")
+            st.metric("Cached", "Yes" if step.get("cached", False) else "No")
 
             st.markdown("**Result Properties**")
-            st.metric("Width", f"{step['result_image'].width} px")
-            st.metric("Height", f"{step['result_image'].height} px")
-            st.metric("Mode", step['result_image'].mode)
+            st.metric("Width", f"{step['image'].width} px")
+            st.metric("Height", f"{step['image'].height} px")
+            st.metric("Mode", step["image"].mode)
 
         # Operation parameters (if available)
-        if hasattr(step, 'parameters'):
+        if hasattr(step, "parameters"):
             with st.expander("⚙️ Operation Parameters"):
                 for key, value in step.parameters.items():
                     st.write(f"**{key}**: {value}")
@@ -392,10 +402,13 @@ class StepInspector:
             st.markdown("---")
             st.markdown("**Comparison with Previous Step**")
 
-            prev_image = (st.session_state.original_image if self.step_index == 0
-                         else self.steps[self.step_index - 1]["result_image"])
+            prev_image = (
+                st.session_state.original_image
+                if self.step_index == 0
+                else self.steps[self.step_index - 1]["result_image"]
+            )
 
-            self._render_step_comparison(step["result_image"], prev_image)
+            self._render_step_comparison(step["image"], prev_image)
 
     def _render_step_comparison(self, current_image: Image.Image, previous_image: Image.Image):
         """Render comparison between current step and previous."""
@@ -408,8 +421,8 @@ class StepInspector:
             st.image(current_image, caption="Current", use_container_width=True)
 
         # Calculate basic differences
-        size_changed = (current_image.size != previous_image.size)
-        mode_changed = (current_image.mode != previous_image.mode)
+        size_changed = current_image.size != previous_image.size
+        mode_changed = current_image.mode != previous_image.mode
 
         if size_changed:
             st.info(f"📐 Size changed: {previous_image.size} → {current_image.size}")
@@ -432,10 +445,7 @@ def render_enhanced_step_visualizer():
     # Check if user selected a step for inspection
     if st.session_state.get("selected_step_for_inspection") is not None:
         # Render step inspector
-        inspector = StepInspector(
-            st.session_state.selected_step_for_inspection,
-            execution_result
-        )
+        inspector = StepInspector(st.session_state.selected_step_for_inspection, execution_result)
 
         # Back button
         if st.button("← Back to Pipeline Flow"):

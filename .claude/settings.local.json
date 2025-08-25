@@ -88,7 +88,8 @@
       "Bash(SKIP_PYTEST=1 git commit -m \"$(cat <<''EOF''\nfix: resolve tab styling and welcome screen display issues\n\n## UI Fixes\n- Removed hardcoded light background (#f8fafc) from BG_SECONDARY \n- Fixed .stTabs CSS to use native Streamlit theming instead of forced light colors\n- Eliminated raw HTML display issue in welcome screen\n- Updated sidebar and metric container backgrounds to be theme-adaptive\n- Replaced problematic HTML sections with clean Streamlit components\n\n## Technical Improvements  \n- Set BG_SECONDARY to \"transparent\" for better dark mode compatibility\n- Removed background-color overrides that interfered with Streamlit''s theming\n- Applied consistent linting fixes across layout components\n- Enhanced welcome screen with proper Streamlit column layout\n\nThe interface now properly adapts to both light and dark themes without\nthe \"terrible\" hardcoded light colors that were breaking the visual experience.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(PYTHONPATH=src uv run ruff check src/ui/components/enhanced_step_visualizer.py src/ui/components/grid_viewer.py src/ui/components/image_inspector.py --no-fix)",
       "Bash(PYTHONPATH=src uv run ruff check src/ui/components/enhanced_step_visualizer.py src/ui/components/grid_viewer.py src/ui/components/image_inspector.py --fix --unsafe-fixes)",
-      "Bash(SKIP_PYTEST=1 git add -A)"
+      "Bash(SKIP_PYTEST=1 git add -A)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

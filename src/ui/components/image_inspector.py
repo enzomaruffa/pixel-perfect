@@ -380,7 +380,7 @@ def render_pixel_inspector():
         and st.session_state.last_execution_result.steps
     ):
         step_names = [
-            f"Step {i + 1}: {step['operation_name']}"
+            f"Step {i + 1}: {step['operation']}"
             for i, step in enumerate(st.session_state.last_execution_result.steps)
         ]
         inspect_options.extend(step_names)
@@ -397,7 +397,7 @@ def render_pixel_inspector():
     else:
         # Step image
         step_index = int(selected_image.split(":")[0].split(" ")[1]) - 1
-        image = st.session_state.last_execution_result.steps[step_index]["result_image"]
+        image = st.session_state.last_execution_result.steps[step_index]["image"]
         title = f"{selected_image} Inspector"
 
     # Render inspector

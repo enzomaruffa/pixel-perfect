@@ -395,6 +395,24 @@ class PixelMath(BaseOperation):
                 "log": np.log,
             }
 
+            # Check if expression contains bitwise operations
+            if any(op in self.expression for op in ["^", "&", "|", "<<", ">>"]):
+                # Convert to int for bitwise operations
+                r_int = r.astype(np.int32)
+                g_int = g.astype(np.int32)
+                b_int = b.astype(np.int32)
+                a_int = a.astype(np.int32)
+
+                # Update safe_dict with integer versions
+                safe_dict.update(
+                    {
+                        "r": r_int,
+                        "g": g_int,
+                        "b": b_int,
+                        "a": a_int,
+                    }
+                )
+
             # Evaluate expression
             result = eval(self.expression, safe_dict)
 
