@@ -42,17 +42,17 @@ class Colors:
     GRAY_800 = "#1f2937"
     GRAY_900 = "#111827"
 
-    # Backgrounds
+    # Backgrounds (light colors - Streamlit handles dark mode automatically)
     BG_PRIMARY = "#ffffff"
     BG_SECONDARY = "#f8fafc"
     BG_TERTIARY = "#f1f5f9"
 
-    # Text colors
+    # Text colors (let Streamlit handle dark mode)
     TEXT_PRIMARY = "#1e293b"
     TEXT_SECONDARY = "#475569"
     TEXT_MUTED = "#64748b"
 
-    # Borders
+    # Borders (let Streamlit handle dark mode)
     BORDER_LIGHT = "#e2e8f0"
     BORDER_DEFAULT = "#cbd5e1"
     BORDER_STRONG = "#94a3b8"

@@ -276,8 +276,8 @@ def render_main_content():
         return
 
     # Main content with tabs for better organization
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["🛠️ Pipeline Builder", "🖼️ Processing", "📤 Export & Share", "📊 Analytics"]
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["🛠️ Pipeline Builder", "🖼️ Advanced Preview", "📊 Inspector Tools", "📤 Export & Share", "📊 Analytics"]
     )
 
     with tab1:
@@ -349,20 +349,51 @@ def render_main_content():
                     render_pipeline_save_load()
 
     with tab2:
-        # Advanced image display
-        render_advanced_image_display()
+        # Advanced Preview System with multiple view modes
+        from ui.components.enhanced_step_visualizer import render_enhanced_step_visualizer
+        from ui.components.grid_viewer import render_fullscreen_viewer, render_grid_viewer
 
-        # Real-time pipeline execution section
-        if st.session_state.pipeline_operations:
-            render_pipeline_execution_controls()
-        else:
-            st.info("Add operations in the Pipeline Builder tab to begin processing")
+        preview_mode = st.selectbox(
+            "Preview Mode",
+            ["Enhanced Step Visualizer", "Grid Viewer", "Full-screen Viewer", "Classic Display"],
+            help="Select advanced preview mode"
+        )
+
+        if preview_mode == "Enhanced Step Visualizer":
+            render_enhanced_step_visualizer()
+        elif preview_mode == "Grid Viewer":
+            render_grid_viewer()
+        elif preview_mode == "Full-screen Viewer":
+            render_fullscreen_viewer()
+        else:  # Classic Display
+            render_advanced_image_display()
+
+            # Real-time pipeline execution section
+            if st.session_state.pipeline_operations:
+                render_pipeline_execution_controls()
+            else:
+                st.info("Add operations in the Pipeline Builder tab to begin processing")
 
     with tab3:
+        # Inspector Tools for pixel-level analysis
+        from ui.components.image_inspector import render_measurement_tools, render_pixel_inspector
+
+        inspector_mode = st.selectbox(
+            "Inspector Mode",
+            ["Pixel Inspector", "Measurement Tools"],
+            help="Select inspection tool"
+        )
+
+        if inspector_mode == "Pixel Inspector":
+            render_pixel_inspector()
+        else:  # Measurement Tools
+            render_measurement_tools()
+
+    with tab4:
         # Export and sharing functionality
         render_export_manager()
 
-    with tab4:
+    with tab5:
         # Advanced comparison analysis (if both images available)
         if st.session_state.get("original_image") and st.session_state.get("processed_image"):
             render_comparison_analysis()
