@@ -126,12 +126,16 @@ class ColumnShift(BaseOperation):
 
     selection: Literal[
         "all", "odd", "even", "prime", "every_n", "custom", "gradient", "formula"
-    ] = "odd"
+    ] = Field("odd", description="Column selection method for applying shifts")
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
-    shift_amount: int = Field(0, description="Pixels to shift (negative=up, positive=down)")
-    wrap: bool = Field(True, description="Wrap around vs fill with color")
-    fill_color: tuple[int, int, int, int] = Field((0, 0, 0, 0), description="RGBA fill color")
+    shift_amount: int = Field(
+        0, description="Number of pixels to shift (positive = right/down, negative = left/up)"
+    )
+    wrap: bool = Field(True, description="Whether to wrap content that extends beyond boundaries")
+    fill_color: tuple[int, int, int, int] = Field(
+        (0, 0, 0, 0), description="RGBA color values (red, green, blue, alpha) in range [0-255]"
+    )
     gradient_start: int = Field(0, description="Starting shift for gradient mode")
     formula: str | None = Field(
         None,
@@ -147,7 +151,7 @@ class ColumnShift(BaseOperation):
     @classmethod
     def validate_indices(cls, v):
         if v is not None and len(v) == 0:
-            raise ValidationError("Custom indices cannot be empty")
+            raise ValidationError("Custom indices list cannot be empty when selection='indices'")
         return v
 
     @field_validator("formula")
@@ -208,7 +212,7 @@ class ColumnShift(BaseOperation):
                 )
             elif self.selection == "formula":
                 if self.formula is None:
-                    raise ValidationError("Formula is required when selection is 'formula'")
+                    raise ValidationError("Parameter is required for the selected configuration")
                 selected_columns = np.arange(width)
                 # Calculate shift amounts using formula
                 column_shifts = _calculate_formula_shifts(self.formula, width)
@@ -275,9 +279,15 @@ class ColumnShift(BaseOperation):
 class ColumnStretch(BaseOperation):
     """Duplicate columns to stretch image horizontally."""
 
-    factor: float = Field(2.0, gt=0, description="Stretch multiplier")
-    method: Literal["duplicate", "distribute"] = "duplicate"
-    selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = "all"
+    factor: float = Field(
+        2.0, gt=0, description="Scaling factor (>1 for stretching, <1 for compressing)"
+    )
+    method: Literal["duplicate", "distribute"] = Field(
+        "duplicate", description="Stretching algorithm to use"
+    )
+    selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = Field(
+        "all", description="Column selection method for applying stretch"
+    )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
 
@@ -285,7 +295,7 @@ class ColumnStretch(BaseOperation):
     @classmethod
     def validate_indices(cls, v):
         if v is not None and len(v) == 0:
-            raise ValidationError("Custom indices cannot be empty")
+            raise ValidationError("Custom indices list cannot be empty when selection='indices'")
         return v
 
     @model_validator(mode="after")
@@ -378,7 +388,9 @@ class ColumnStretch(BaseOperation):
 class ColumnMirror(BaseOperation):
     """Reflect columns around vertical axis."""
 
-    mode: Literal["full", "alternating"] = "full"
+    mode: Literal["full", "alternating"] = Field(
+        "full", description="Mirror mode (full = entire image, alternating = every other column)"
+    )
     pivot: int | None = Field(None, description="Column index to mirror around")
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
@@ -440,7 +452,10 @@ class ColumnMirror(BaseOperation):
 class ColumnWeave(BaseOperation):
     """Interlace columns from different parts of image."""
 
-    pattern: list[int] = Field(..., description="List defining source indices mapping")
+    pattern: list[int] = Field(
+        ...,
+        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
+    )
     repeat: bool = Field(True, description="Cycle pattern if shorter than width")
 
     @field_validator("pattern")

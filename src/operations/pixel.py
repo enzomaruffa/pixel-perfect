@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
+from operations._constants import get_standardized_description, get_standardized_error
 from utils.validation import validate_channel_list, validate_color_tuple, validate_expression_safe
 
 
@@ -17,14 +18,22 @@ class PixelFilterConfig(BaseModel):
 
     condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = Field(
         "prime",
-        description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)",
+        description="Mathematical condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression using variables 'x', 'y', 'i')",
     )
-    custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
+    custom_expression: str | None = Field(
+        None,
+        description="Custom expression using variables: 'x' (column), 'y' (row), 'i' (linear index), 'width', 'height'. Example: 'x + y > 10'",
+    )
     fill_color: tuple[int, int, int, int] = Field(
-        (0, 0, 0, 0), description="RGBA fill color for filtered pixels"
+        (0, 0, 0, 0), description=get_standardized_description("fill_color", "color")
     )
-    preserve_alpha: bool = Field(True, description="Keep original alpha channel")
-    index_mode: Literal["linear", "2d"] = Field("linear", description="Index calculation mode")
+    preserve_alpha: bool = Field(
+        True, description=get_standardized_description("preserve_alpha", "boolean")
+    )
+    index_mode: Literal["linear", "2d"] = Field(
+        "linear",
+        description="Index calculation mode: 'linear' uses sequential pixel index, '2d' uses row/column coordinates",
+    )
 
     @field_validator("custom_expression")
     @classmethod
@@ -39,9 +48,15 @@ class PixelFilterConfig(BaseModel):
     def validate_custom_expression_required(self) -> "PixelFilterConfig":
         """Validate model after all fields are set."""
         if self.condition == "custom" and not self.custom_expression:
-            raise ValueError("custom_expression required when condition='custom'")
+            raise ValidationError(
+                get_standardized_error(
+                    "required_param", param="custom_expression", condition="condition='custom'"
+                )
+            )
         elif self.condition != "custom" and self.custom_expression is not None:
-            raise ValueError("custom_expression only valid when condition='custom'")
+            raise ValidationError(
+                "custom_expression should only be provided when condition='custom'"
+            )
 
         return self
 
@@ -57,9 +72,18 @@ class PixelFilterConfig(BaseModel):
 class PixelMathConfig(BaseModel):
     """Configuration for PixelMath operation."""
 
-    expression: str = Field(..., description="Math expression using r,g,b,a,x,y variables")
-    channels: list[str] = Field(["r", "g", "b"], description="Channels to affect")
-    clamp: bool = Field(True, description="Clamp results to valid range [0, 255]")
+    expression: str = Field(
+        ...,
+        description="Mathematical expression using variables: 'r', 'g', 'b', 'a' (pixel channels), 'x' (column), 'y' (row), 'width', 'height'. Example: 'r * 0.8 + g * 0.2'",
+    )
+    channels: list[str] = Field(
+        ["r", "g", "b"],
+        description="Color channels to apply the expression to (subset of ['r', 'g', 'b', 'a'])",
+    )
+    clamp: bool = Field(
+        True,
+        description="Whether to clamp result values to valid range [0-255] (recommended to prevent overflow)",
+    )
 
     @field_validator("expression")
     @classmethod
@@ -97,11 +121,11 @@ class PixelFilter(BaseOperation):
 
     condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = Field(
         "prime",
-        description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)",
+        description="Mathematical condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression using variables 'x', 'y', 'i')",
     )
     custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
     fill_color: tuple[int, int, int, int] = Field(
-        (0, 0, 0, 0), description="RGBA fill color for filtered pixels"
+        (0, 0, 0, 0), description="RGBA color values (red, green, blue, alpha) in range [0-255]"
     )
     preserve_alpha: bool = Field(True, description="Keep original alpha channel")
     index_mode: Literal["linear", "2d"] = Field("linear", description="Index calculation mode")
@@ -286,7 +310,7 @@ class PixelFilter(BaseOperation):
 
             # Evaluate expression
             if self.custom_expression is None:
-                raise ValidationError("Custom expression is required when condition is 'custom'")
+                raise ValidationError("Parameter is required for the selected configuration")
             result = eval(self.custom_expression, safe_dict)
             return np.array(result, dtype=bool)
 

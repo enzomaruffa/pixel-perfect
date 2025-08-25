@@ -302,7 +302,9 @@ class AspectStretch(BaseOperation):
     """Force image to specific aspect ratio via non-uniform scaling."""
 
     target_ratio: str = Field("16:9", description="Target aspect ratio (e.g., '16:9', '1:1')")
-    method: Literal["simple", "segment"] = Field("simple", description="Stretching method")
+    method: Literal["simple", "segment"] = Field(
+        "simple", description="Scaling factor (>1 for stretching, <1 for compressing)"
+    )
     segment_count: int = Field(3, ge=1, description="Number of segments for segment method")
     preserve_center: bool = Field(True, description="Minimize center distortion")
 

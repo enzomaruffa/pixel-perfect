@@ -8,19 +8,36 @@ from ui.components.image_display import render_advanced_image_display
 from ui.components.image_viewer import render_image_upload
 from ui.components.pipeline_executor import get_pipeline_executor
 from ui.components.session import get_pipeline_summary, reset_all, reset_pipeline
+from ui.design_system import Colors, render_section_header, render_status_badge
 
 
 def render_header():
     """Render the application header with title and controls."""
 
-    col1, col2, col3 = st.columns([2, 1, 1])
+    col1, col2, col3 = st.columns([3, 1, 1])
 
     with col1:
-        st.title("🎨 Pixel Perfect")
-        st.caption("Sophisticated image processing with visual pipeline builder")
+        st.markdown(
+            f"""
+            <div style="margin-bottom: 24px;">
+                <h1 style="font-size: 2.5rem; font-weight: 700; color: {Colors.TEXT_PRIMARY}; margin: 0; line-height: 1.2;">
+                    🎨 Pixel Perfect
+                </h1>
+                <p style="font-size: 1.1rem; color: {Colors.TEXT_SECONDARY}; margin: 8px 0 0 0; font-weight: 400;">
+                    Sophisticated image processing with visual pipeline builder
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        if st.button("🔄 Reset Pipeline", help="Clear all operations", key="header_reset_pipeline"):
+        if st.button(
+            "🔄 Reset Pipeline",
+            help="Clear all operations",
+            key="header_reset_pipeline",
+            type="secondary",
+        ):
             reset_pipeline()
             st.rerun()
 
@@ -126,31 +143,42 @@ def render_sidebar_preview():
 def render_sidebar():
     """Render the sidebar with essential controls and live preview."""
 
-    st.header("📁 Image Upload")
+    render_section_header("Image Upload", "📁")
     render_image_upload()
 
-    # Live Preview Section
-    st.header("👁️ Live Preview")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    render_section_header("Live Preview", "👁️")
     render_sidebar_preview()
 
-    # Pipeline status summary
-    st.header("📊 Status")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    render_section_header("Pipeline Status", "📊")
     summary = get_pipeline_summary()
 
-    if summary["has_image"]:
-        st.success("✅ Image loaded")
-    else:
-        st.info("📤 Upload an image to begin")
+    # Status badges
+    status_col1, status_col2 = st.columns(2)
 
+    with status_col1:
+        if summary["has_image"]:
+            render_status_badge("Image Ready", "success")
+        else:
+            render_status_badge("No Image", "info")
+
+    with status_col2:
+        if summary["operation_count"] > 0:
+            render_status_badge(f"{summary['operation_count']} Ops", "info")
+        else:
+            render_status_badge("No Operations", "info")
+
+    # Results status
     if summary["operation_count"] > 0:
-        st.info(f"🔧 {summary['operation_count']} operation(s)")
-
         if summary["has_results"]:
-            st.success("✨ Results ready")
+            render_status_badge("Results Ready", "success")
         elif summary["has_error"]:
-            st.error("❌ Pipeline error")
-    else:
-        st.info("➕ Ready to build pipeline")
+            render_status_badge("Pipeline Error", "error")
+        else:
+            render_status_badge("Pending Execution", "warning")
 
 
 def render_main_content():
@@ -169,27 +197,82 @@ def render_main_content():
 
     # Check if we have an image
     if not st.session_state.original_image:
-        st.info("👆 Upload an image in the sidebar to get started")
+        # Show professional welcome screen
+        st.markdown(
+            f"""
+            <div style="text-align: center; padding: {Colors.GRAY_50} 0; margin-bottom: 32px;">
+                <div style="background: linear-gradient(135deg, {Colors.PRIMARY_BLUE_LIGHT}, {Colors.PRIMARY_BLUE});
+                           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                           font-size: 3rem; font-weight: 800; margin-bottom: 16px;">
+                    🎨 Welcome to Pixel Perfect!
+                </div>
+                <p style="font-size: 1.2rem; color: {Colors.TEXT_SECONDARY}; max-width: 600px; margin: 0 auto;">
+                    A sophisticated image processing framework with visual pipeline builder
+                </p>
+            </div>
 
-        # Show welcome message
-        st.markdown("""
-        ## Welcome to Pixel Perfect!
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px;">
+                <div style="background: {Colors.BG_PRIMARY}; border: 1px solid {Colors.BORDER_LIGHT};
+                           border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h3 style="color: {Colors.PRIMARY_BLUE}; margin: 0 0 16px 0;">🎯 Multi-Granularity Operations</h3>
+                    <p style="color: {Colors.TEXT_SECONDARY}; margin: 0; line-height: 1.6;">
+                        Work at pixel, row, column, or block levels with precise control over every transformation.
+                    </p>
+                </div>
 
-        This is a sophisticated image processing framework that applies pixel-level
-        transformations through a visual pipeline builder.
+                <div style="background: {Colors.BG_PRIMARY}; border: 1px solid {Colors.BORDER_LIGHT};
+                           border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h3 style="color: {Colors.SUCCESS_GREEN}; margin: 0 0 16px 0;">⚡ Real-Time Preview</h3>
+                    <p style="color: {Colors.TEXT_SECONDARY}; margin: 0; line-height: 1.6;">
+                        See changes instantly as you adjust parameters with smart caching and optimized rendering.
+                    </p>
+                </div>
 
-        ### Features:
-        - 🎯 **Multi-granularity operations** - Work at pixel, row, column, or block levels
-        - ⚡ **Real-time preview** - See changes as you adjust parameters
-        - 🧩 **Composable pipeline** - Chain operations for complex effects
-        - 💾 **Smart caching** - Fast iteration with automatic result caching
-        - 📤 **Export & Share** - Save your work and share configurations
+                <div style="background: {Colors.BG_PRIMARY}; border: 1px solid {Colors.BORDER_LIGHT};
+                           border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h3 style="color: {Colors.WARNING_AMBER}; margin: 0 0 16px 0;">🧩 Composable Pipeline</h3>
+                    <p style="color: {Colors.TEXT_SECONDARY}; margin: 0; line-height: 1.6;">
+                        Chain operations together to create complex effects with a visual pipeline builder.
+                    </p>
+                </div>
+            </div>
 
-        ### Get Started:
-        1. Upload an image using the sidebar
-        2. Add operations to build your processing pipeline
-        3. Watch the magic happen in real-time!
-        """)
+            <div style="background: {Colors.BG_SECONDARY}; border: 1px solid {Colors.BORDER_LIGHT};
+                       border-radius: 12px; padding: 32px; text-align: center;">
+                <h3 style="color: {Colors.TEXT_PRIMARY}; margin: 0 0 24px 0;">Get Started in 3 Easy Steps</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div>
+                        <div style="background: {Colors.PRIMARY_BLUE}; color: white; width: 40px; height: 40px;
+                                   border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                                   margin: 0 auto 12px; font-weight: bold; font-size: 1.2rem;">1</div>
+                        <h4 style="margin: 0 0 8px 0; color: {Colors.TEXT_PRIMARY};">Upload Image</h4>
+                        <p style="margin: 0; color: {Colors.TEXT_SECONDARY}; font-size: 0.9rem;">
+                            👆 Use the sidebar to upload your image
+                        </p>
+                    </div>
+                    <div>
+                        <div style="background: {Colors.SUCCESS_GREEN}; color: white; width: 40px; height: 40px;
+                                   border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                                   margin: 0 auto 12px; font-weight: bold; font-size: 1.2rem;">2</div>
+                        <h4 style="margin: 0 0 8px 0; color: {Colors.TEXT_PRIMARY};">Build Pipeline</h4>
+                        <p style="margin: 0; color: {Colors.TEXT_SECONDARY}; font-size: 0.9rem;">
+                            Add operations to create your processing pipeline
+                        </p>
+                    </div>
+                    <div>
+                        <div style="background: {Colors.WARNING_AMBER}; color: white; width: 40px; height: 40px;
+                                   border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                                   margin: 0 auto 12px; font-weight: bold; font-size: 1.2rem;">3</div>
+                        <h4 style="margin: 0 0 8px 0; color: {Colors.TEXT_PRIMARY};">Watch Magic</h4>
+                        <p style="margin: 0; color: {Colors.TEXT_SECONDARY}; font-size: 0.9rem;">
+                            See your transformations happen in real-time!
+                        </p>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         return
 
     # Main content with tabs for better organization
@@ -204,17 +287,19 @@ def render_main_content():
         with col1:
             from ui.components.operation_browser import render_operation_browser
 
+            render_section_header("Operations Library", "🧰")
             render_operation_browser()
 
         with col2:
             from ui.components.preset_browser import render_preset_browser
 
+            render_section_header("Preset Effects", "✨")
             render_preset_browser()
 
         with col3:
             from ui.components.operation_browser import render_pipeline_summary
 
-            st.header("🔗 Current Pipeline")
+            render_section_header("Pipeline Configuration", "🔗")
 
             # Add real-time execution toggle
             auto_preview = st.checkbox(

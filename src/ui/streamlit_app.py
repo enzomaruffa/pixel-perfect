@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from ui.components.layout import render_header, render_main_content, render_sidebar
 from ui.components.session import initialize_session_state
+from ui.design_system import apply_global_styles
 
 
 def main():
@@ -33,27 +34,8 @@ def main():
         },
     )
 
-    # Custom CSS for optimized layout
-    st.markdown(
-        """
-    <style>
-        /* Compact sidebar for essential controls */
-        .css-1d391kg {width: 280px !important;}
-        .css-1cyp50f {min-width: 280px !important; max-width: 280px !important;}
-
-        /* Adjust main content margin */
-        .main .block-container {margin-left: 300px;}
-
-        /* Responsive adjustments */
-        @media (max-width: 1024px) {
-            .css-1d391kg {width: 250px !important;}
-            .css-1cyp50f {min-width: 250px !important; max-width: 250px !important;}
-            .main .block-container {margin-left: 270px;}
-        }
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
+    # Apply professional design system
+    apply_global_styles()
 
     # Initialize session state
     initialize_session_state()

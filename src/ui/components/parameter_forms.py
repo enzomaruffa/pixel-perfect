@@ -5,6 +5,7 @@ from typing import Any
 import streamlit as st
 from pydantic import ValidationError
 
+from ui.design_system import render_section_header
 from ui.utils.form_generators import extract_pydantic_model_from_operation, generate_parameter_form
 
 
@@ -19,7 +20,7 @@ def render_operation_parameter_editor():
     operation_class = operation_config["class"]
     current_params = operation_config["params"]
 
-    st.header(f"🔧 Configure {operation_config['name']}")
+    render_section_header(f"Configure {operation_config['name']}", "🔧")
 
     # Generate parameter form WITHOUT st.form for reactivity
     form_values = generate_parameter_form(operation_class, current_params)

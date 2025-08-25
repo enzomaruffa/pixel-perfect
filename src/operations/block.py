@@ -219,7 +219,10 @@ class BlockFilter(BaseOperation):
 
     block_width: int = Field(8, gt=0, description="Width of each block in pixels")
     block_height: int = Field(8, gt=0, description="Height of each block in pixels")
-    keep_blocks: list[int] | None = Field(None, description="List of block indices to preserve")
+    keep_blocks: list[int] | None = Field(
+        None,
+        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
+    )
     condition: Literal["checkerboard", "diagonal", "corners", "custom"] = "checkerboard"
     fill_color: tuple[int, int, int, int] = Field(
         (0, 0, 0, 0), description="RGBA for hidden blocks"
@@ -279,7 +282,7 @@ class BlockFilter(BaseOperation):
             # Determine which blocks to keep
             if self.condition == "custom":
                 if self.keep_blocks is None:
-                    raise ValidationError("keep_blocks is required when condition is 'custom'")
+                    raise ValidationError("Parameter is required for the selected configuration")
                 keep_indices = set(self.keep_blocks)
             else:
                 keep_indices = set(_select_blocks(self.condition, grid_dims))
@@ -449,7 +452,10 @@ class BlockRotate(BaseOperation):
     selection: Literal["all", "odd", "even", "checkerboard", "diagonal", "corners", "custom"] = (
         "all"
     )
-    indices: list[int] | None = Field(None, description="Custom block indices to rotate")
+    indices: list[int] | None = Field(
+        None,
+        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
+    )
     padding_mode: Literal["crop", "extend", "fill"] = "crop"
 
     @model_validator(mode="after")
@@ -502,7 +508,7 @@ class BlockRotate(BaseOperation):
                 rotate_indices = set(range(total_blocks))
             elif self.selection == "custom":
                 if self.indices is None:
-                    raise ValidationError("indices is required when selection is 'custom'")
+                    raise ValidationError("Parameter is required for the selected configuration")
                 rotate_indices = set(self.indices)
             else:
                 rotate_indices = set(_select_blocks(self.selection, grid_dims))
@@ -556,7 +562,10 @@ class BlockScramble(BaseOperation):
     block_width: int = Field(8, gt=0, description="Width of blocks")
     block_height: int = Field(8, gt=0, description="Height of blocks")
     seed: int | None = Field(None, description="Random seed for reproducibility")
-    exclude: list[int] | None = Field(None, description="Block indices to keep in place")
+    exclude: list[int] | None = Field(
+        None,
+        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
+    )
     padding_mode: Literal["crop", "extend", "fill"] = "crop"
 
     def validate_operation(self, context: ImageContext) -> ImageContext:

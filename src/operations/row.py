@@ -10,6 +10,7 @@ from pydantic import Field, field_validator, model_validator
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
+from operations._constants import get_standardized_error
 from utils.validation import validate_color_tuple, validate_expression_safe
 
 
@@ -35,12 +36,14 @@ def _select_rows(selection: str, height: int, **kwargs) -> np.ndarray:
     elif selection == "every_n":
         n = kwargs.get("n", 1)
         if n <= 0:
-            raise ValidationError("Parameter 'n' must be positive")
+            raise ValidationError(
+                get_standardized_error("out_of_range", param="n", value=n, min_val=1, max_val="∞")
+            )
         return np.arange(0, height, n)
     elif selection == "custom":
         indices = kwargs.get("indices", [])
         if not indices:
-            raise ValidationError("Custom selection requires 'indices' parameter")
+            raise ValidationError(get_standardized_error("empty_indices"))
         indices_array = np.array(indices)
         if np.any(indices_array < 0) or np.any(indices_array >= height):
             raise ValidationError(f"Row indices must be in range [0, {height})")
@@ -129,16 +132,21 @@ class RowShift(BaseOperation):
         "all", "odd", "even", "prime", "every_n", "custom", "gradient", "formula"
     ] = Field(
         "odd",
-        description="Which rows to shift (all, odd/even rows, prime indices, every Nth row, custom list, gradient, or formula-based)",
+        description="Which rows to affect (all, odd, even, specific indices, or custom condition)",
     )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
-    shift_amount: int = Field(0, description="Pixels to shift (negative=left, positive=right)")
-    wrap: bool = Field(True, description="Wrap around vs fill with color")
-    fill_color: tuple[int, int, int, int] = Field((0, 0, 0, 0), description="RGBA fill color")
+    shift_amount: int = Field(
+        0, description="Number of pixels to shift (positive = right/down, negative = left/up)"
+    )
+    wrap: bool = Field(True, description="Whether to wrap content that extends beyond boundaries")
+    fill_color: tuple[int, int, int, int] = Field(
+        (0, 0, 0, 0), description="RGBA color values (red, green, blue, alpha) in range [0-255]"
+    )
     gradient_start: int = Field(0, description="Starting shift for gradient mode")
     formula: str | None = Field(
-        None, description="Mathematical formula for formula mode (use 'y' for row coordinate, 0 to height-1)"
+        None,
+        description="Mathematical formula for formula mode (use 'y' for row coordinate, 0 to height-1)",
     )
 
     @field_validator("fill_color")
@@ -150,7 +158,7 @@ class RowShift(BaseOperation):
     @classmethod
     def validate_indices(cls, v):
         if v is not None and len(v) == 0:
-            raise ValidationError("Custom indices cannot be empty")
+            raise ValidationError("Custom indices list cannot be empty when selection='indices'")
         return v
 
     @field_validator("formula")
@@ -211,7 +219,7 @@ class RowShift(BaseOperation):
                 )
             elif self.selection == "formula":
                 if self.formula is None:
-                    raise ValidationError("Formula is required when selection is 'formula'")
+                    raise ValidationError("Parameter is required for the selected configuration")
                 selected_rows = np.arange(height)
                 # Calculate shift amounts using formula
                 row_shifts = _calculate_formula_shifts(self.formula, height)
@@ -274,14 +282,16 @@ class RowShift(BaseOperation):
 class RowStretch(BaseOperation):
     """Duplicate rows to stretch image vertically."""
 
-    factor: float = Field(2.0, gt=0, description="Stretch multiplier")
+    factor: float = Field(
+        2.0, gt=0, description="Scaling factor (>1 for stretching, <1 for compressing)"
+    )
     method: Literal["duplicate", "distribute"] = Field(
         "duplicate",
         description="How to stretch rows (duplicate existing rows or distribute evenly)",
     )
     selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = Field(
         "all",
-        description="Which rows to stretch (all rows, odd/even rows, prime indices, every Nth row, or custom list)",
+        description="Which rows to affect (all, odd, even, specific indices, or custom condition)",
     )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
@@ -290,7 +300,7 @@ class RowStretch(BaseOperation):
     @classmethod
     def validate_indices(cls, v):
         if v is not None and len(v) == 0:
-            raise ValidationError("Custom indices cannot be empty")
+            raise ValidationError("Custom indices list cannot be empty when selection='indices'")
         return v
 
     @model_validator(mode="after")
@@ -385,7 +395,7 @@ class RowRemove(BaseOperation):
 
     selection: Literal["odd", "even", "prime", "every_n", "custom"] = Field(
         "odd",
-        description="Which rows to remove (odd/even rows, prime indices, every Nth row, or custom list)",
+        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
     )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
@@ -394,7 +404,7 @@ class RowRemove(BaseOperation):
     @classmethod
     def validate_indices(cls, v):
         if v is not None and len(v) == 0:
-            raise ValidationError("Custom indices cannot be empty")
+            raise ValidationError("Custom indices list cannot be empty when selection='indices'")
         return v
 
     @model_validator(mode="after")

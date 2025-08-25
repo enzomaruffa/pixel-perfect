@@ -206,8 +206,12 @@ class GridWarp(BaseOperation):
 class PerspectiveStretch(BaseOperation):
     """Simulate perspective distortion with linear scale interpolation."""
 
-    top_factor: float = Field(1.0, gt=0, description="Scale factor for top edge")
-    bottom_factor: float = Field(0.5, gt=0, description="Scale factor for bottom edge")
+    top_factor: float = Field(
+        1.0, gt=0, description="Scaling factor (>1 for stretching, <1 for compressing)"
+    )
+    bottom_factor: float = Field(
+        0.5, gt=0, description="Scaling factor (>1 for stretching, <1 for compressing)"
+    )
     interpolation: Literal["nearest", "bilinear"] = Field(
         "bilinear", description="Interpolation method"
     )
@@ -304,7 +308,9 @@ class RadialStretch(BaseOperation):
     center: tuple[int, int] | Literal["auto"] = Field(
         "auto", description="Center point for radial stretch"
     )
-    factor: float = Field(1.5, gt=0, description="Stretch factor (>1 expand, <1 contract)")
+    factor: float = Field(
+        1.5, gt=0, description="Scaling factor (>1 for stretching, <1 for compressing)"
+    )
     falloff: Literal["linear", "quadratic", "exponential"] = Field(
         "linear", description="Falloff function for stretch effect"
     )
