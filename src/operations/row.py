@@ -126,7 +126,7 @@ class RowShift(BaseOperation):
 
     selection: Literal[
         "all", "odd", "even", "prime", "every_n", "custom", "gradient", "formula"
-    ] = "odd"
+    ] = Field("odd", description="Which rows to shift (all, odd/even rows, prime indices, every Nth row, custom list, gradient, or formula-based)")
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
     shift_amount: int = Field(0, description="Pixels to shift (negative=left, positive=right)")
@@ -206,6 +206,8 @@ class RowShift(BaseOperation):
                     ]
                 )
             elif self.selection == "formula":
+                if self.formula is None:
+                    raise ValidationError("Formula is required when selection is 'formula'")
                 selected_rows = np.arange(height)
                 # Calculate shift amounts using formula
                 row_shifts = _calculate_formula_shifts(self.formula, height)
@@ -269,8 +271,8 @@ class RowStretch(BaseOperation):
     """Duplicate rows to stretch image vertically."""
 
     factor: float = Field(2.0, gt=0, description="Stretch multiplier")
-    method: Literal["duplicate", "distribute"] = "duplicate"
-    selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = "all"
+    method: Literal["duplicate", "distribute"] = Field("duplicate", description="How to stretch rows (duplicate existing rows or distribute evenly)")
+    selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = Field("all", description="Which rows to stretch (all rows, odd/even rows, prime indices, every Nth row, or custom list)")
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
 
@@ -371,7 +373,7 @@ class RowStretch(BaseOperation):
 class RowRemove(BaseOperation):
     """Delete specific rows from image."""
 
-    selection: Literal["odd", "even", "prime", "every_n", "custom"] = "odd"
+    selection: Literal["odd", "even", "prime", "every_n", "custom"] = Field("odd", description="Which rows to remove (odd/even rows, prime indices, every Nth row, or custom list)")
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
 

@@ -8,14 +8,16 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from core.base import BaseOperation
 from core.context import ImageContext
-from exceptions import ProcessingError
+from exceptions import ProcessingError, ValidationError
 from utils.validation import validate_channel_list, validate_color_tuple, validate_expression_safe
 
 
 class PixelFilterConfig(BaseModel):
     """Configuration for PixelFilter operation."""
 
-    condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = "prime"
+    condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = Field(
+        "prime", description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)"
+    )
     custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
     fill_color: tuple[int, int, int, int] = Field(
         (0, 0, 0, 0), description="RGBA fill color for filtered pixels"
@@ -46,7 +48,9 @@ class PixelFilterConfig(BaseModel):
     @classmethod
     def validate_fill_color(cls, v: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
         """Validate fill color values."""
-        return validate_color_tuple(v, channels=4)
+        validated = validate_color_tuple(v, channels=4)
+        # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple  
+        return validated  # type: ignore[return-value]
 
 
 class PixelMathConfig(BaseModel):
@@ -90,7 +94,9 @@ class PixelSortConfig(BaseModel):
 class PixelFilter(BaseOperation):
     """Filter pixels based on index conditions."""
 
-    condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = "prime"
+    condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = Field(
+        "prime", description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)"
+    )
     custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
     fill_color: tuple[int, int, int, int] = Field(
         (0, 0, 0, 0), description="RGBA fill color for filtered pixels"
@@ -119,7 +125,9 @@ class PixelFilter(BaseOperation):
     @classmethod
     def validate_fill_color(cls, v: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
         """Validate fill color values."""
-        return validate_color_tuple(v, channels=4)
+        validated = validate_color_tuple(v, channels=4)
+        # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple  
+        return validated  # type: ignore[return-value]
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""
@@ -275,6 +283,8 @@ class PixelFilter(BaseOperation):
             }
 
             # Evaluate expression
+            if self.custom_expression is None:
+                raise ValidationError("Custom expression is required when condition is 'custom'")
             result = eval(self.custom_expression, safe_dict)
             return np.array(result, dtype=bool)
 

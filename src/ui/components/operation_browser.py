@@ -1,5 +1,7 @@
 """Operation browser component for selecting and adding operations to pipeline."""
 
+import uuid
+
 import streamlit as st
 
 from .operation_registry import OPERATION_REGISTRY, get_operation_by_name, search_operations
@@ -29,21 +31,12 @@ def render_operation_browser():
             key="category_filter",
         )
 
-        # Difficulty filter
-        difficulty_filter = st.selectbox(
-            "Difficulty Level",
-            options=[None, "Beginner", "Intermediate", "Advanced"],
-            format_func=lambda x: "All Levels" if x is None else x,
-            key="difficulty_filter",
-        )
-
     # Show search results if search query exists
     if search_query:
         st.subheader("🔍 Search Results")
         results = search_operations(
             search_query,
             categories=selected_categories if selected_categories else None,
-            difficulty=difficulty_filter,
         )
 
         if results:
@@ -64,18 +57,11 @@ def render_operation_browser():
             with st.expander(f"{category_info['icon']} {category_info['name']}", expanded=True):
                 st.caption(category_info["description"])
 
-                # Filter operations by difficulty if specified
+                # Get all operations for this category
                 operations = category_info["operations"]
-                if difficulty_filter:
-                    operations = {
-                        name: info
-                        for name, info in operations.items()
-                        if info["difficulty"] == difficulty_filter
-                    }
 
                 if not operations:
-                    difficulty_text = difficulty_filter.lower() if difficulty_filter else "matching"
-                    st.info(f"No {difficulty_text} operations in this category.")
+                    st.info(f"No operations in this category.")
                     continue
 
                 for op_name, op_info in operations.items():
@@ -92,20 +78,15 @@ def render_operation_browser():
 def render_operation_card(op_info: dict, show_category: bool = False):
     """Render an individual operation card."""
 
-    # Difficulty color mapping
-    difficulty_colors = {"Beginner": "🟢", "Intermediate": "🟡", "Advanced": "🔴"}
-
-    difficulty_icon = difficulty_colors.get(op_info["difficulty"], "⚪")
-
     # Operation header
     col1, col2 = st.columns([3, 1])
 
     with col1:
         if show_category:
-            st.write(f"**{op_info['name']}** {difficulty_icon}")
+            st.write(f"**{op_info['name']}**")
             st.caption(f"{op_info['category_icon']} {op_info['category_name']}")
         else:
-            st.write(f"**{op_info['name']}** {difficulty_icon}")
+            st.write(f"**{op_info['name']}**")
 
     with col2:
         # Add to pipeline button
@@ -139,13 +120,13 @@ def add_operation_to_pipeline(op_info: dict):
     if "pipeline_operations" not in st.session_state:
         st.session_state.pipeline_operations = []
 
-    # Create operation configuration
+    # Create operation configuration with truly unique ID
     operation_config = {
         "name": op_info["name"],
         "class": op_info["class"],
         "params": op_info["default_params"].copy(),
         "enabled": True,
-        "id": f"{op_info['name']}_{len(st.session_state.pipeline_operations)}",  # Unique ID
+        "id": str(uuid.uuid4()),  # Generate truly unique ID
     }
 
     # Add to pipeline

@@ -362,7 +362,7 @@ def get_all_operations():
 
 
 def search_operations(
-    query: str, categories: list[str] | None = None, difficulty: str | None = None
+    query: str, categories: list[str] | None = None
 ):
     """Search operations by name, description, or tags."""
     query = query.lower()
@@ -374,10 +374,6 @@ def search_operations(
             continue
 
         for op_name, op_info in category_info["operations"].items():
-            # Skip difficulty not in filter
-            if difficulty and op_info["difficulty"] != difficulty:
-                continue
-
             # Check if query matches name, description, or tags
             matches = (
                 query in op_name.lower()

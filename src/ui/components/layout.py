@@ -67,6 +67,9 @@ def execute_pipeline_inline():
                 else ""
             )
             st.toast(f"✅ Pipeline executed in {result.execution_time:.2f}s{cache_info}", icon="✅")
+            
+            # Force UI refresh to update preview
+            st.rerun()
 
     except Exception as e:
         st.error(f"❌ Execution failed: {str(e)}")
@@ -355,8 +358,14 @@ def execute_pipeline_realtime(executor, execute_up_to=None, force_refresh=False)
 
             # Store execution results for display
             st.session_state.last_execution_result = result
+            
+            # Reset parameters changed flag
+            st.session_state.parameters_changed = False
+            
+            # Force UI refresh to update preview
+            st.rerun()
 
-        # Reset parameters changed flag
+        # Reset parameters changed flag for other cases too
         st.session_state.parameters_changed = False
 
     except Exception as e:
