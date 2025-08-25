@@ -197,87 +197,63 @@ def render_main_content():
 
     # Check if we have an image
     if not st.session_state.original_image:
-        # Show professional welcome screen
-        st.markdown(
-            f"""
-            <div style="text-align: center; padding: {Colors.GRAY_50} 0; margin-bottom: 32px;">
-                <div style="background: linear-gradient(135deg, {Colors.PRIMARY_BLUE_LIGHT}, {Colors.PRIMARY_BLUE});
-                           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                           font-size: 3rem; font-weight: 800; margin-bottom: 16px;">
-                    🎨 Welcome to Pixel Perfect!
-                </div>
-                <p style="font-size: 1.2rem; color: {Colors.TEXT_SECONDARY}; max-width: 600px; margin: 0 auto;">
-                    A sophisticated image processing framework with visual pipeline builder
-                </p>
-            </div>
+        # Show clean welcome screen with no raw HTML
+        st.markdown("# 🎨 Welcome to Pixel Perfect!")
+        st.markdown("### A sophisticated image processing framework with visual pipeline builder")
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px;">
-                <div style="background: {Colors.BG_PRIMARY}; border: 1px solid {Colors.BORDER_LIGHT};
-                           border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: {Colors.PRIMARY_BLUE}; margin: 0 0 16px 0;">🎯 Multi-Granularity Operations</h3>
-                    <p style="color: {Colors.TEXT_SECONDARY}; margin: 0; line-height: 1.6;">
-                        Work at pixel, row, column, or block levels with precise control over every transformation.
-                    </p>
-                </div>
+        st.markdown("---")
 
-                <div style="background: {Colors.BG_PRIMARY}; border: 1px solid {Colors.BORDER_LIGHT};
-                           border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: {Colors.SUCCESS_GREEN}; margin: 0 0 16px 0;">⚡ Real-Time Preview</h3>
-                    <p style="color: {Colors.TEXT_SECONDARY}; margin: 0; line-height: 1.6;">
-                        See changes instantly as you adjust parameters with smart caching and optimized rendering.
-                    </p>
-                </div>
+        # Feature cards using Streamlit columns
+        col1, col2, col3 = st.columns(3)
 
-                <div style="background: {Colors.BG_PRIMARY}; border: 1px solid {Colors.BORDER_LIGHT};
-                           border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: {Colors.WARNING_AMBER}; margin: 0 0 16px 0;">🧩 Composable Pipeline</h3>
-                    <p style="color: {Colors.TEXT_SECONDARY}; margin: 0; line-height: 1.6;">
-                        Chain operations together to create complex effects with a visual pipeline builder.
-                    </p>
-                </div>
-            </div>
+        with col1:
+            st.markdown("### 🎯 Multi-Granularity Operations")
+            st.write(
+                "Work at pixel, row, column, or block levels with precise control over every transformation."
+            )
 
-            <div style="background: {Colors.BG_SECONDARY}; border: 1px solid {Colors.BORDER_LIGHT};
-                       border-radius: 12px; padding: 32px; text-align: center;">
-                <h3 style="color: {Colors.TEXT_PRIMARY}; margin: 0 0 24px 0;">Get Started in 3 Easy Steps</h3>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                    <div>
-                        <div style="background: {Colors.PRIMARY_BLUE}; color: white; width: 40px; height: 40px;
-                                   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                                   margin: 0 auto 12px; font-weight: bold; font-size: 1.2rem;">1</div>
-                        <h4 style="margin: 0 0 8px 0; color: {Colors.TEXT_PRIMARY};">Upload Image</h4>
-                        <p style="margin: 0; color: {Colors.TEXT_SECONDARY}; font-size: 0.9rem;">
-                            👆 Use the sidebar to upload your image
-                        </p>
-                    </div>
-                    <div>
-                        <div style="background: {Colors.SUCCESS_GREEN}; color: white; width: 40px; height: 40px;
-                                   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                                   margin: 0 auto 12px; font-weight: bold; font-size: 1.2rem;">2</div>
-                        <h4 style="margin: 0 0 8px 0; color: {Colors.TEXT_PRIMARY};">Build Pipeline</h4>
-                        <p style="margin: 0; color: {Colors.TEXT_SECONDARY}; font-size: 0.9rem;">
-                            Add operations to create your processing pipeline
-                        </p>
-                    </div>
-                    <div>
-                        <div style="background: {Colors.WARNING_AMBER}; color: white; width: 40px; height: 40px;
-                                   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                                   margin: 0 auto 12px; font-weight: bold; font-size: 1.2rem;">3</div>
-                        <h4 style="margin: 0 0 8px 0; color: {Colors.TEXT_PRIMARY};">Watch Magic</h4>
-                        <p style="margin: 0; color: {Colors.TEXT_SECONDARY}; font-size: 0.9rem;">
-                            See your transformations happen in real-time!
-                        </p>
-                    </div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with col2:
+            st.markdown("### ⚡ Real-Time Preview")
+            st.write(
+                "See changes instantly as you adjust parameters with smart caching and optimized rendering."
+            )
+
+        with col3:
+            st.markdown("### 🧩 Composable Pipeline")
+            st.write(
+                "Chain operations together to create complex effects with a visual pipeline builder."
+            )
+
+        st.markdown("---")
+
+        # Get started section
+        st.markdown("### Get Started in 3 Easy Steps")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown("#### 1️⃣ Upload Image")
+            st.write("👆 Use the sidebar to upload your image")
+
+        with col2:
+            st.markdown("#### 2️⃣ Build Pipeline")
+            st.write("Add operations to create your processing pipeline")
+
+        with col3:
+            st.markdown("#### 3️⃣ Watch Magic")
+            st.write("See your transformations happen in real-time!")
+
         return
 
     # Main content with tabs for better organization
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["🛠️ Pipeline Builder", "🖼️ Advanced Preview", "📊 Inspector Tools", "📤 Export & Share", "📊 Analytics"]
+        [
+            "🛠️ Pipeline Builder",
+            "🖼️ Advanced Preview",
+            "📊 Inspector Tools",
+            "📤 Export & Share",
+            "📊 Analytics",
+        ]
     )
 
     with tab1:
@@ -356,7 +332,7 @@ def render_main_content():
         preview_mode = st.selectbox(
             "Preview Mode",
             ["Enhanced Step Visualizer", "Grid Viewer", "Full-screen Viewer", "Classic Display"],
-            help="Select advanced preview mode"
+            help="Select advanced preview mode",
         )
 
         if preview_mode == "Enhanced Step Visualizer":
@@ -381,7 +357,7 @@ def render_main_content():
         inspector_mode = st.selectbox(
             "Inspector Mode",
             ["Pixel Inspector", "Measurement Tools"],
-            help="Select inspection tool"
+            help="Select inspection tool",
         )
 
         if inspector_mode == "Pixel Inspector":

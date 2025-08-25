@@ -18,11 +18,7 @@ class GridViewer:
 
     def add_image(self, image: Image.Image, title: str, metadata: dict | None = None):
         """Add an image to the grid."""
-        self.images.append({
-            'image': image,
-            'title': title,
-            'metadata': metadata or {}
-        })
+        self.images.append({"image": image, "title": title, "metadata": metadata or {}})
 
     def render(self, thumbnail_size: int = 300):
         """Render the grid viewer interface."""
@@ -40,7 +36,7 @@ class GridViewer:
                 "Grid Columns",
                 options=[1, 2, 3, 4, 5],
                 value=min(3, len(self.images)),
-                help="Number of columns in the grid"
+                help="Number of columns in the grid",
             )
 
         with col2:
@@ -48,7 +44,7 @@ class GridViewer:
                 "Thumbnail Size",
                 options=[150, 200, 250, 300, 400],
                 value=250,
-                help="Size of thumbnails in pixels"
+                help="Size of thumbnails in pixels",
             )
 
         with col3:
@@ -70,17 +66,14 @@ class GridViewer:
                 if image_idx < total_images:
                     with cols[col_idx]:
                         self._render_grid_item(
-                            self.images[image_idx],
-                            thumbnail_size,
-                            show_metadata,
-                            image_idx
+                            self.images[image_idx], thumbnail_size, show_metadata, image_idx
                         )
 
     def _render_grid_item(self, item: dict, size: int, show_metadata: bool, index: int):
         """Render a single item in the grid."""
-        image = item['image']
-        title = item['title']
-        metadata = item['metadata']
+        image = item["image"]
+        title = item["title"]
+        metadata = item["metadata"]
 
         # Optimize image for display
         display_image = optimize_image_for_display(image, max_size=(size, size))
@@ -89,14 +82,14 @@ class GridViewer:
         st.markdown(
             f"""
             <div style="
-                border: 1px solid {Colors.BORDER_LIGHT}; 
-                border-radius: 8px; 
-                padding: {Spacing.SM}; 
+                border: 1px solid {Colors.BORDER_LIGHT};
+                border-radius: 8px;
+                padding: {Spacing.SM};
                 margin-bottom: {Spacing.MD};
                 background: {Colors.BG_PRIMARY};
             ">
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
         # Image
@@ -125,16 +118,13 @@ class GridViewer:
         render_section_header("Grid Comparison Mode", "⚖️")
 
         # Image selection
-        image_titles = [img['title'] for img in self.images]
+        image_titles = [img["title"] for img in self.images]
 
         col1, col2 = st.columns(2)
 
         with col1:
             left_selection = st.selectbox(
-                "Left Image:",
-                image_titles,
-                index=0,
-                key="grid_left_selection"
+                "Left Image:", image_titles, index=0, key="grid_left_selection"
             )
 
         with col2:
@@ -142,29 +132,29 @@ class GridViewer:
                 "Right Image:",
                 image_titles,
                 index=min(1, len(image_titles) - 1),
-                key="grid_right_selection"
+                key="grid_right_selection",
             )
 
         # Find selected images
-        left_image = next(img for img in self.images if img['title'] == left_selection)
-        right_image = next(img for img in self.images if img['title'] == right_selection)
+        left_image = next(img for img in self.images if img["title"] == left_selection)
+        right_image = next(img for img in self.images if img["title"] == right_selection)
 
         # Display comparison
         col1, col2 = st.columns(2)
 
         with col1:
             st.markdown(f"**{left_image['title']}**")
-            st.image(left_image['image'], use_container_width=True)
-            self._render_image_stats(left_image['image'])
+            st.image(left_image["image"], use_container_width=True)
+            self._render_image_stats(left_image["image"])
 
         with col2:
             st.markdown(f"**{right_image['title']}**")
-            st.image(right_image['image'], use_container_width=True)
-            self._render_image_stats(right_image['image'])
+            st.image(right_image["image"], use_container_width=True)
+            self._render_image_stats(right_image["image"])
 
         # Comparison metrics
         if st.button("📊 Calculate Comparison Metrics"):
-            self._calculate_comparison_metrics(left_image['image'], right_image['image'])
+            self._calculate_comparison_metrics(left_image["image"], right_image["image"])
 
     def _render_image_stats(self, image: Image.Image):
         """Render basic statistics for an image."""
@@ -200,8 +190,10 @@ class GridViewer:
                 st.metric("PSNR", f"{comparison.get('psnr', 0):.2f}")
 
             # Visual difference
-            if 'diff_image' in comparison:
-                st.image(comparison['diff_image'], caption="Visual Difference", use_container_width=True)
+            if "diff_image" in comparison:
+                st.image(
+                    comparison["diff_image"], caption="Visual Difference", use_container_width=True
+                )
 
         except Exception as e:
             st.error(f"Failed to calculate comparison metrics: {e}")
@@ -226,7 +218,7 @@ class FullscreenViewer:
                 "Zoom Level",
                 options=[0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0],
                 value=1.0,
-                help="Zoom level for detailed viewing"
+                help="Zoom level for detailed viewing",
             )
 
         with col2:
@@ -241,13 +233,13 @@ class FullscreenViewer:
         # Image processing
         display_image = self.image.copy()
 
-        if invert_colors:
-            if display_image.mode in ('RGB', 'RGBA'):
-                # Invert RGB channels
-                from PIL import ImageOps
-                display_image = ImageOps.invert(display_image.convert('RGB'))
-                if self.image.mode == 'RGBA':
-                    display_image = display_image.convert('RGBA')
+        if invert_colors and display_image.mode in ("RGB", "RGBA"):
+            # Invert RGB channels
+            from PIL import ImageOps
+
+            display_image = ImageOps.invert(display_image.convert("RGB"))
+            if self.image.mode == "RGBA":
+                display_image = display_image.convert("RGBA")
 
         # Apply zoom
         if zoom_level != 1.0:
@@ -256,9 +248,13 @@ class FullscreenViewer:
 
             if zoom_level > 4.0:
                 # Use nearest neighbor for pixel art effect at high zoom
-                display_image = display_image.resize((new_width, new_height), Image.NEAREST)
+                display_image = display_image.resize(
+                    (new_width, new_height), Image.Resampling.NEAREST
+                )
             else:
-                display_image = display_image.resize((new_width, new_height), Image.LANCZOS)
+                display_image = display_image.resize(
+                    (new_width, new_height), Image.Resampling.LANCZOS
+                )
 
         # Add pixel grid for very high zoom levels
         if show_grid and zoom_level >= 8.0:
@@ -338,7 +334,9 @@ class FullscreenViewer:
         with col1:
             if st.button("🔍➕ Zoom In"):
                 zoom_options = [0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
-                current_idx = zoom_options.index(current_zoom) if current_zoom in zoom_options else 3
+                current_idx = (
+                    zoom_options.index(current_zoom) if current_zoom in zoom_options else 3
+                )
                 if current_idx < len(zoom_options) - 1:
                     st.session_state.fullscreen_zoom = zoom_options[current_idx + 1]
                     st.rerun()
@@ -346,7 +344,9 @@ class FullscreenViewer:
         with col2:
             if st.button("🔍➖ Zoom Out"):
                 zoom_options = [0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
-                current_idx = zoom_options.index(current_zoom) if current_zoom in zoom_options else 3
+                current_idx = (
+                    zoom_options.index(current_zoom) if current_zoom in zoom_options else 3
+                )
                 if current_idx > 0:
                     st.session_state.fullscreen_zoom = zoom_options[current_idx - 1]
                     st.rerun()
@@ -360,14 +360,14 @@ class FullscreenViewer:
             if st.button("💾 Download"):
                 # Create download link
                 img_buffer = io.BytesIO()
-                self.image.save(img_buffer, format='PNG')
+                self.image.save(img_buffer, format="PNG")
                 img_buffer.seek(0)
 
                 st.download_button(
                     label="💾 Download PNG",
                     data=img_buffer.getvalue(),
                     file_name=f"{self.title.replace(' ', '_')}.png",
-                    mime="image/png"
+                    mime="image/png",
                 )
 
 
@@ -382,9 +382,7 @@ def render_grid_viewer():
 
     # Add original image
     grid.add_image(
-        st.session_state.original_image,
-        "Original",
-        {"source": "uploaded", "type": "original"}
+        st.session_state.original_image, "Original", {"source": "uploaded", "type": "original"}
     )
 
     # Add processed image if available
@@ -392,20 +390,23 @@ def render_grid_viewer():
         grid.add_image(
             st.session_state.processed_image,
             "Final Result",
-            {"source": "pipeline", "type": "processed"}
+            {"source": "pipeline", "type": "processed"},
         )
 
     # Add step images if available
-    if st.session_state.get("last_execution_result") and st.session_state.last_execution_result.steps:
+    if (
+        st.session_state.get("last_execution_result")
+        and st.session_state.last_execution_result.steps
+    ):
         for i, step in enumerate(st.session_state.last_execution_result.steps):
             grid.add_image(
                 step.result_image,
-                f"Step {i+1}: {step.operation_name}",
+                f"Step {i + 1}: {step.operation_name}",
                 {
                     "operation": step.operation_name,
                     "execution_time": f"{step.execution_time:.3f}s",
-                    "cached": "Yes" if step.cached else "No"
-                }
+                    "cached": "Yes" if step.cached else "No",
+                },
             )
 
     # Render grid
@@ -429,8 +430,14 @@ def render_fullscreen_viewer():
     if st.session_state.get("processed_image"):
         view_options.append("Processed Image")
 
-    if st.session_state.get("last_execution_result") and st.session_state.last_execution_result.steps:
-        step_names = [f"Step {i+1}: {step.operation_name}" for i, step in enumerate(st.session_state.last_execution_result.steps)]
+    if (
+        st.session_state.get("last_execution_result")
+        and st.session_state.last_execution_result.steps
+    ):
+        step_names = [
+            f"Step {i + 1}: {step.operation_name}"
+            for i, step in enumerate(st.session_state.last_execution_result.steps)
+        ]
         view_options.extend(step_names)
 
     selected_view = st.selectbox("Select image to view:", view_options)

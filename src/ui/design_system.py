@@ -44,7 +44,7 @@ class Colors:
 
     # Backgrounds (light colors - Streamlit handles dark mode automatically)
     BG_PRIMARY = "#ffffff"
-    BG_SECONDARY = "#f8fafc"
+    BG_SECONDARY = "transparent"
     BG_TERTIARY = "#f1f5f9"
 
     # Text colors (let Streamlit handle dark mode)
@@ -251,7 +251,6 @@ def apply_global_styles():
         /* Improved sidebar styling */
         .css-1d391kg {{
             width: 300px !important;
-            background-color: {Colors.BG_SECONDARY};
             border-right: 1px solid {Colors.BORDER_LIGHT};
         }}
 
@@ -322,7 +321,6 @@ def apply_global_styles():
 
         /* Tab improvements */
         .stTabs {{
-            background-color: {Colors.BG_SECONDARY};
             border-radius: 8px;
             padding: {Spacing.SM};
             margin-bottom: {Spacing.MD};
@@ -336,7 +334,6 @@ def apply_global_styles():
 
         /* Metric improvements */
         .metric-container {{
-            background-color: {Colors.BG_SECONDARY};
             border: 1px solid {Colors.BORDER_LIGHT};
             border-radius: 8px;
             padding: {Spacing.MD};

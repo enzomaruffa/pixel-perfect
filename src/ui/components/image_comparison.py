@@ -3,8 +3,71 @@
 import numpy as np
 import streamlit as st
 from PIL import Image, ImageChops, ImageStat
+from skimage.metrics import structural_similarity as ssim
 
 from ui.utils.image_utils import optimize_image_for_display
+
+
+def calculate_image_comparison(image_a: Image.Image, image_b: Image.Image) -> dict:
+    """
+    Calculate comparison metrics between two images.
+
+    Args:
+        image_a: First image for comparison
+        image_b: Second image for comparison
+
+    Returns:
+        Dictionary with comparison metrics
+    """
+    # Ensure images are the same size
+    if image_a.size != image_b.size:
+        # Resize to smaller dimensions
+        min_width = min(image_a.width, image_b.width)
+        min_height = min(image_a.height, image_b.height)
+        image_a = image_a.resize((min_width, min_height), Image.Resampling.LANCZOS)
+        image_b = image_b.resize((min_width, min_height), Image.Resampling.LANCZOS)
+
+    # Convert to same mode if needed
+    if image_a.mode != image_b.mode:
+        if image_a.mode == "RGBA" or image_b.mode == "RGBA":
+            image_a = image_a.convert("RGBA")
+            image_b = image_b.convert("RGBA")
+        else:
+            image_a = image_a.convert("RGB")
+            image_b = image_b.convert("RGB")
+
+    # Convert to numpy arrays
+    array_a = np.array(image_a)
+    array_b = np.array(image_b)
+
+    # Calculate MSE
+    mse = np.mean((array_a.astype(float) - array_b.astype(float)) ** 2)
+
+    # Calculate PSNR
+    if mse == 0:
+        psnr = float("inf")
+    else:
+        max_pixel = 255.0
+        psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
+
+    # Calculate SSIM for grayscale comparison
+    if len(array_a.shape) == 3:  # Color image
+        # Convert to grayscale for SSIM
+        gray_a = np.dot(array_a[..., :3], [0.2989, 0.5870, 0.1140])
+        gray_b = np.dot(array_b[..., :3], [0.2989, 0.5870, 0.1140])
+    else:  # Grayscale
+        gray_a = array_a
+        gray_b = array_b
+
+    try:
+        ssim_score = ssim(gray_a, gray_b, data_range=gray_a.max() - gray_a.min())
+    except Exception:
+        ssim_score = 0.0
+
+    # Create difference image
+    diff_image = ImageChops.difference(image_a.convert("RGB"), image_b.convert("RGB"))
+
+    return {"mse": mse, "psnr": psnr, "ssim_score": ssim_score, "diff_image": diff_image}
 
 
 def render_comparison_analysis():

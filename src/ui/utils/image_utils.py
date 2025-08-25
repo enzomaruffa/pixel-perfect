@@ -39,7 +39,10 @@ def validate_uploaded_image(uploaded_file) -> bool:
 
 
 def optimize_image_for_display(
-    image: Image.Image, max_width: int = 800, max_height: int = 600
+    image: Image.Image,
+    max_width: int = 800,
+    max_height: int = 600,
+    max_size: tuple[int, int] | None = None,
 ) -> Image.Image:
     """
     Optimize image for web display without losing aspect ratio.
@@ -48,10 +51,14 @@ def optimize_image_for_display(
         image: PIL Image to optimize
         max_width: Maximum display width
         max_height: Maximum display height
+        max_size: Alternative way to specify (max_width, max_height) as tuple
 
     Returns:
         Optimized PIL Image
     """
+    # Handle max_size parameter
+    if max_size is not None:
+        max_width, max_height = max_size
     original_width, original_height = image.size
 
     # Calculate scaling factor to fit within bounds

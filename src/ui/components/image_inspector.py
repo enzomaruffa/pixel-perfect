@@ -29,14 +29,14 @@ class PixelInspector:
                 "Zoom Level",
                 options=[0.25, 0.5, 1.0, 2.0, 4.0, 8.0],
                 value=2.0,
-                help="Zoom level for detailed inspection"
+                help="Zoom level for detailed inspection",
             )
 
         with col2:
             show_grid = st.checkbox("Show Pixel Grid", value=True)
 
         with col3:
-            show_coordinates = st.checkbox("Show Coordinates", value=True)
+            st.checkbox("Show Coordinates", value=True)
 
         # Region selection
         st.markdown("**Region Selection**")
@@ -44,18 +44,15 @@ class PixelInspector:
 
         with region_col1:
             center_x = st.number_input(
-                "Center X",
-                min_value=0,
-                max_value=self.image.width-1,
-                value=self.image.width//2
+                "Center X", min_value=0, max_value=self.image.width - 1, value=self.image.width // 2
             )
 
         with region_col2:
             center_y = st.number_input(
                 "Center Y",
                 min_value=0,
-                max_value=self.image.height-1,
-                value=self.image.height//2
+                max_value=self.image.height - 1,
+                value=self.image.height // 2,
             )
 
         # Calculate region bounds
@@ -73,8 +70,7 @@ class PixelInspector:
             display_width = int((x2 - x1) * zoom_level)
             display_height = int((y2 - y1) * zoom_level)
             region_display = region.resize(
-                (display_width, display_height),
-                Image.NEAREST
+                (display_width, display_height), Image.Resampling.NEAREST
             )
 
             # Add grid overlay if requested
@@ -139,8 +135,8 @@ class PixelInspector:
             color_hex = f"#{pixel[0]:02x}{pixel[1]:02x}{pixel[2]:02x}"
             st.markdown(
                 f'<div style="background-color: {color_hex}; width: 100px; height: 50px; '
-                f'border: 1px solid {Colors.BORDER_DEFAULT}; border-radius: 4px; margin: 8px 0;"></div>',
-                unsafe_allow_html=True
+                + f'border: 1px solid {Colors.BORDER_DEFAULT}; border-radius: 4px; margin: 8px 0;"></div>',
+                unsafe_allow_html=True,
             )
             st.caption(f"Hex: {color_hex}")
 
@@ -151,18 +147,20 @@ class PixelInspector:
         st.markdown("**Region Statistics**")
 
         if len(region_array.shape) == 3:  # Color image
-            channels = ["Red", "Green", "Blue", "Alpha"][:region_array.shape[2]]
+            channels = ["Red", "Green", "Blue", "Alpha"][: region_array.shape[2]]
 
             stats_data = []
             for i, channel in enumerate(channels):
                 channel_data = region_array[:, :, i]
-                stats_data.append({
-                    "Channel": channel,
-                    "Mean": f"{np.mean(channel_data):.1f}",
-                    "Std": f"{np.std(channel_data):.1f}",
-                    "Min": f"{np.min(channel_data)}",
-                    "Max": f"{np.max(channel_data)}"
-                })
+                stats_data.append(
+                    {
+                        "Channel": channel,
+                        "Mean": f"{np.mean(channel_data):.1f}",
+                        "Std": f"{np.std(channel_data):.1f}",
+                        "Min": f"{np.min(channel_data)}",
+                        "Max": f"{np.max(channel_data)}",
+                    }
+                )
 
             st.table(stats_data)
         else:  # Grayscale
@@ -200,22 +198,17 @@ class MeasurementTool:
             measurement_type = st.selectbox(
                 "Measurement Type",
                 ["Distance", "Area", "Angle"],
-                help="Select the type of measurement to perform"
+                help="Select the type of measurement to perform",
             )
 
         with col2:
             units = st.selectbox(
-                "Units",
-                ["Pixels", "mm", "inches", "custom"],
-                help="Units for measurements"
+                "Units", ["Pixels", "mm", "inches", "custom"], help="Units for measurements"
             )
 
         if units == "custom":
             scale_factor = st.number_input(
-                "Pixels per unit",
-                min_value=0.1,
-                value=1.0,
-                help="How many pixels equal one unit"
+                "Pixels per unit", min_value=0.1, value=1.0, help="How many pixels equal one unit"
             )
         else:
             scale_factor = 1.0
@@ -236,22 +229,22 @@ class MeasurementTool:
 
         with col1:
             st.markdown("*Point 1*")
-            x1 = st.number_input("X1", min_value=0, max_value=self.image.width-1, value=0)
-            y1 = st.number_input("Y1", min_value=0, max_value=self.image.height-1, value=0)
+            x1 = st.number_input("X1", min_value=0, max_value=self.image.width - 1, value=0)
+            y1 = st.number_input("Y1", min_value=0, max_value=self.image.height - 1, value=0)
 
         with col2:
             st.markdown("*Point 2*")
-            x2 = st.number_input("X2", min_value=0, max_value=self.image.width-1, value=100)
-            y2 = st.number_input("Y2", min_value=0, max_value=self.image.height-1, value=100)
+            x2 = st.number_input("X2", min_value=0, max_value=self.image.width - 1, value=100)
+            y2 = st.number_input("Y2", min_value=0, max_value=self.image.height - 1, value=100)
 
         # Calculate distance
-        distance_pixels = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        distance_pixels = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
         distance_units = distance_pixels / scale_factor
 
         st.metric(
             f"Distance ({units})",
             f"{distance_units:.2f}",
-            help=f"Distance in pixels: {distance_pixels:.2f}"
+            help=f"Distance in pixels: {distance_pixels:.2f}",
         )
 
         # Visual representation
@@ -266,13 +259,21 @@ class MeasurementTool:
 
         with col1:
             st.markdown("*Rectangle Top-Left*")
-            x1 = st.number_input("X", min_value=0, max_value=self.image.width-1, value=0, key="area_x1")
-            y1 = st.number_input("Y", min_value=0, max_value=self.image.height-1, value=0, key="area_y1")
+            x1 = st.number_input(
+                "X", min_value=0, max_value=self.image.width - 1, value=0, key="area_x1"
+            )
+            y1 = st.number_input(
+                "Y", min_value=0, max_value=self.image.height - 1, value=0, key="area_y1"
+            )
 
         with col2:
             st.markdown("*Rectangle Bottom-Right*")
-            x2 = st.number_input("X", min_value=0, max_value=self.image.width-1, value=100, key="area_x2")
-            y2 = st.number_input("Y", min_value=0, max_value=self.image.height-1, value=100, key="area_y2")
+            x2 = st.number_input(
+                "X", min_value=0, max_value=self.image.width - 1, value=100, key="area_x2"
+            )
+            y2 = st.number_input(
+                "Y", min_value=0, max_value=self.image.height - 1, value=100, key="area_y2"
+            )
 
         # Calculate area
         width_pixels = abs(x2 - x1)
@@ -286,11 +287,7 @@ class MeasurementTool:
         with col2:
             st.metric(f"Height ({units})", f"{height_pixels / scale_factor:.2f}")
 
-        st.metric(
-            f"Area ({units}²)",
-            f"{area_units:.2f}",
-            help=f"Area in pixels²: {area_pixels}"
-        )
+        st.metric(f"Area ({units}²)", f"{area_units:.2f}", help=f"Area in pixels²: {area_pixels}")
 
     def _render_angle_tool(self) -> None:
         """Render angle measurement tool."""
@@ -300,18 +297,18 @@ class MeasurementTool:
 
         with col1:
             st.markdown("*Point A*")
-            xa = st.number_input("XA", min_value=0, max_value=self.image.width-1, value=0)
-            ya = st.number_input("YA", min_value=0, max_value=self.image.height-1, value=0)
+            xa = st.number_input("XA", min_value=0, max_value=self.image.width - 1, value=0)
+            ya = st.number_input("YA", min_value=0, max_value=self.image.height - 1, value=0)
 
         with col2:
             st.markdown("*Point B (Vertex)*")
-            xb = st.number_input("XB", min_value=0, max_value=self.image.width-1, value=50)
-            yb = st.number_input("YB", min_value=0, max_value=self.image.height-1, value=50)
+            xb = st.number_input("XB", min_value=0, max_value=self.image.width - 1, value=50)
+            yb = st.number_input("YB", min_value=0, max_value=self.image.height - 1, value=50)
 
         with col3:
             st.markdown("*Point C*")
-            xc = st.number_input("XC", min_value=0, max_value=self.image.width-1, value=100)
-            yc = st.number_input("YC", min_value=0, max_value=self.image.height-1, value=0)
+            xc = st.number_input("XC", min_value=0, max_value=self.image.width - 1, value=100)
+            yc = st.number_input("YC", min_value=0, max_value=self.image.height - 1, value=0)
 
         # Calculate angle
         angle_rad = self._calculate_angle(xa, ya, xb, yb, xc, yc)
@@ -350,10 +347,18 @@ class MeasurementTool:
 
         # Draw endpoint markers
         marker_size = 5
-        draw.ellipse([x1-marker_size, y1-marker_size, x1+marker_size, y1+marker_size],
-                    fill="red", outline="white", width=1)
-        draw.ellipse([x2-marker_size, y2-marker_size, x2+marker_size, y2+marker_size],
-                    fill="red", outline="white", width=1)
+        draw.ellipse(
+            [x1 - marker_size, y1 - marker_size, x1 + marker_size, y1 + marker_size],
+            fill="red",
+            outline="white",
+            width=1,
+        )
+        draw.ellipse(
+            [x2 - marker_size, y2 - marker_size, x2 + marker_size, y2 + marker_size],
+            fill="red",
+            outline="white",
+            width=1,
+        )
 
         # Display the overlay
         st.image(overlay_image, caption="Distance Measurement Overlay", use_container_width=True)
@@ -370,8 +375,14 @@ def render_pixel_inspector():
     if st.session_state.get("processed_image"):
         inspect_options.append("Processed Image")
 
-    if st.session_state.get("last_execution_result") and st.session_state.last_execution_result.steps:
-        step_names = [f"Step {i+1}: {step.operation_name}" for i, step in enumerate(st.session_state.last_execution_result.steps)]
+    if (
+        st.session_state.get("last_execution_result")
+        and st.session_state.last_execution_result.steps
+    ):
+        step_names = [
+            f"Step {i + 1}: {step.operation_name}"
+            for i, step in enumerate(st.session_state.last_execution_result.steps)
+        ]
         inspect_options.extend(step_names)
 
     selected_image = st.selectbox("Select image to inspect:", inspect_options)
