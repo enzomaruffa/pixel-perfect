@@ -67,7 +67,7 @@ def execute_pipeline_inline():
                 else ""
             )
             st.toast(f"✅ Pipeline executed in {result.execution_time:.2f}s{cache_info}", icon="✅")
-            
+
             # Force UI refresh to update preview
             st.rerun()
 
@@ -187,7 +187,7 @@ def render_main_content():
 
     with tab1:
         # Pipeline builder - operations and configuration
-        col1, col2 = st.columns([1, 1])
+        col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
             from ui.components.operation_browser import render_operation_browser
@@ -195,6 +195,11 @@ def render_main_content():
             render_operation_browser()
 
         with col2:
+            from ui.components.preset_browser import render_preset_browser
+
+            render_preset_browser()
+
+        with col3:
             from ui.components.operation_browser import render_pipeline_summary
 
             st.header("🔗 Current Pipeline")
@@ -209,8 +214,9 @@ def render_main_content():
 
             render_pipeline_summary()
 
-            # Quick pipeline actions
+            # Pipeline actions
             if st.session_state.get("pipeline_operations"):
+                # Execution controls
                 col_a, col_b = st.columns(2)
                 with col_a:
                     execute_button = st.button(
@@ -224,12 +230,24 @@ def render_main_content():
                         st.session_state.pipeline_operations = []
                         st.rerun()
 
+                # Pipeline Management Section
+                st.divider()
+                from ui.components.pipeline_manager import render_pipeline_actions
+                render_pipeline_actions()
+
                 # Execute pipeline if button clicked or auto-preview is on with changes
                 if execute_button or (
                     auto_preview and st.session_state.get("parameters_changed", False)
                 ):
                     with st.spinner("🔄 Executing pipeline..."):
                         execute_pipeline_inline()
+            
+            # Show pipeline manager modal if requested
+            if st.session_state.get("show_pipeline_manager", False):
+                st.session_state.show_pipeline_manager = False  # Reset flag
+                with st.container():
+                    from ui.components.pipeline_manager import render_pipeline_save_load
+                    render_pipeline_save_load()
 
     with tab2:
         # Advanced image display
@@ -358,10 +376,10 @@ def execute_pipeline_realtime(executor, execute_up_to=None, force_refresh=False)
 
             # Store execution results for display
             st.session_state.last_execution_result = result
-            
+
             # Reset parameters changed flag
             st.session_state.parameters_changed = False
-            
+
             # Force UI refresh to update preview
             st.rerun()
 

@@ -177,7 +177,16 @@ def validate_expression_safe(expression: str) -> None:
         "int",
         "float",
     }
-    allowed_vars = {"r", "g", "b", "a", "x", "y", "width", "height", "i", "j"}
+    # STANDARD VARIABLES (preferred)
+    allowed_vars = {
+        "r", "g", "b", "a",           # Color channels (0-255)
+        "x", "y",                     # Spatial coordinates (x=column, y=row)
+        "width", "height",            # Image dimensions
+        "i"                           # Linear pixel index (0 to width*height-1)
+    }
+    
+    # DEPRECATED VARIABLES (for backward compatibility)
+    deprecated_vars = {"j"}  # Use 'x' for column coordinate instead
 
     # Check for unsafe characters
     expr_lower = expression.lower()
@@ -217,8 +226,24 @@ def validate_expression_safe(expression: str) -> None:
     functions_used = re.findall(function_pattern, expression)
 
     for func in functions_used:
-        if func.lower() not in allowed_functions and func.lower() not in allowed_vars:
+        if func.lower() not in allowed_functions and func.lower() not in allowed_vars and func.lower() not in deprecated_vars:
             raise ValidationError(f"Unknown or unsafe function '{func}' in expression")
+    
+    # Check for deprecated variables and warn
+    import re
+    import warnings
+    variable_pattern = r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b"
+    variables_used = re.findall(variable_pattern, expression)
+    
+    for var in variables_used:
+        if var in deprecated_vars:
+            if var == "j":
+                warnings.warn(
+                    f"Variable 'j' is deprecated. Use 'x' for column coordinate instead. "
+                    f"Example: '{expression.replace('j', 'x')}'",
+                    DeprecationWarning,
+                    stacklevel=3
+                )
 
 
 def validate_positive_number(value: float, name: str = "value") -> None:

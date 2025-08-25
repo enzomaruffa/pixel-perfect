@@ -106,9 +106,10 @@ def _calculate_formula_shifts(formula: str, width: int) -> np.ndarray:
 
     for j in range(width):
         try:
-            # Create evaluation context with column index
+            # Create evaluation context with column coordinate
             context = allowed_names.copy()
-            context["j"] = j
+            context["x"] = j  # NEW STANDARD: x for column coordinate  
+            context["j"] = j  # DEPRECATED: keep for backward compatibility
             context["width"] = width
 
             # Evaluate formula and convert to int
@@ -133,7 +134,7 @@ class ColumnShift(BaseOperation):
     fill_color: tuple[int, int, int, int] = Field((0, 0, 0, 0), description="RGBA fill color")
     gradient_start: int = Field(0, description="Starting shift for gradient mode")
     formula: str | None = Field(
-        None, description="Mathematical formula for formula mode (use 'j' for column index)"
+        None, description="Mathematical formula for formula mode (use 'x' for column coordinate, 0 to width-1)"
     )
 
     @field_validator("fill_color")
@@ -205,6 +206,8 @@ class ColumnShift(BaseOperation):
                     ]
                 )
             elif self.selection == "formula":
+                if self.formula is None:
+                    raise ValidationError("Formula is required when selection is 'formula'")
                 selected_columns = np.arange(width)
                 # Calculate shift amounts using formula
                 column_shifts = _calculate_formula_shifts(self.formula, width)

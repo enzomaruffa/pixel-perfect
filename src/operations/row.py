@@ -107,9 +107,10 @@ def _calculate_formula_shifts(formula: str, height: int) -> np.ndarray:
 
     for i in range(height):
         try:
-            # Create evaluation context with row index
+            # Create evaluation context with row coordinate
             context = allowed_names.copy()
-            context["i"] = i
+            context["y"] = i  # NEW STANDARD: y for row coordinate
+            context["i"] = i  # DEPRECATED: keep for backward compatibility
             context["height"] = height
 
             # Evaluate formula and convert to int
@@ -126,7 +127,10 @@ class RowShift(BaseOperation):
 
     selection: Literal[
         "all", "odd", "even", "prime", "every_n", "custom", "gradient", "formula"
-    ] = Field("odd", description="Which rows to shift (all, odd/even rows, prime indices, every Nth row, custom list, gradient, or formula-based)")
+    ] = Field(
+        "odd",
+        description="Which rows to shift (all, odd/even rows, prime indices, every Nth row, custom list, gradient, or formula-based)",
+    )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
     shift_amount: int = Field(0, description="Pixels to shift (negative=left, positive=right)")
@@ -134,7 +138,7 @@ class RowShift(BaseOperation):
     fill_color: tuple[int, int, int, int] = Field((0, 0, 0, 0), description="RGBA fill color")
     gradient_start: int = Field(0, description="Starting shift for gradient mode")
     formula: str | None = Field(
-        None, description="Mathematical formula for formula mode (use 'i' for row index)"
+        None, description="Mathematical formula for formula mode (use 'y' for row coordinate, 0 to height-1)"
     )
 
     @field_validator("fill_color")
@@ -271,8 +275,14 @@ class RowStretch(BaseOperation):
     """Duplicate rows to stretch image vertically."""
 
     factor: float = Field(2.0, gt=0, description="Stretch multiplier")
-    method: Literal["duplicate", "distribute"] = Field("duplicate", description="How to stretch rows (duplicate existing rows or distribute evenly)")
-    selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = Field("all", description="Which rows to stretch (all rows, odd/even rows, prime indices, every Nth row, or custom list)")
+    method: Literal["duplicate", "distribute"] = Field(
+        "duplicate",
+        description="How to stretch rows (duplicate existing rows or distribute evenly)",
+    )
+    selection: Literal["all", "odd", "even", "prime", "every_n", "custom"] = Field(
+        "all",
+        description="Which rows to stretch (all rows, odd/even rows, prime indices, every Nth row, or custom list)",
+    )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
 
@@ -373,7 +383,10 @@ class RowStretch(BaseOperation):
 class RowRemove(BaseOperation):
     """Delete specific rows from image."""
 
-    selection: Literal["odd", "even", "prime", "every_n", "custom"] = Field("odd", description="Which rows to remove (odd/even rows, prime indices, every Nth row, or custom list)")
+    selection: Literal["odd", "even", "prime", "every_n", "custom"] = Field(
+        "odd",
+        description="Which rows to remove (odd/even rows, prime indices, every Nth row, or custom list)",
+    )
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
 
