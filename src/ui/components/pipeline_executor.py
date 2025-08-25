@@ -173,6 +173,7 @@ class PipelineExecutor:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_input:
             image.save(tmp_input.name)
 
+            tmp_output = None
             try:
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_output:
                     # Create pipeline with single operation
@@ -196,7 +197,7 @@ class PipelineExecutor:
                 # Clean up temp files
                 try:
                     os.unlink(tmp_input.name)
-                    if "tmp_output" in locals():
+                    if tmp_output is not None:
                         os.unlink(tmp_output.name)
                 except Exception:
                     pass  # Ignore cleanup errors

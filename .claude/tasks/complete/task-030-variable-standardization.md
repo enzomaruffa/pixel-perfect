@@ -40,7 +40,7 @@ DIMENSIONS:
 
 ### Phase 1: Update Operations
 1. **RowShift**: Change from `'i'` to `'y'` for row coordinate
-2. **ColumnShift**: Change from `'j'` to `'x'` for column coordinate  
+2. **ColumnShift**: Change from `'j'` to `'x'` for column coordinate
 3. **Keep PixelMath**: Already uses correct `x, y, r, g, b, a` variables
 4. **Keep PixelFilter**: `'i'` is correct for linear pixel index
 
@@ -68,7 +68,7 @@ DIMENSIONS:
    ```python
    # OLD:
    context["i"] = i  # row index
-   
+
    # NEW:
    context["y"] = i  # row coordinate (y-axis)
    context["i"] = i  # DEPRECATED - keep for backward compatibility
@@ -78,7 +78,7 @@ DIMENSIONS:
    ```python
    # OLD:
    context["j"] = j  # column index
-   
+
    # NEW:
    context["x"] = j  # column coordinate (x-axis)
    context["j"] = j  # DEPRECATED - keep for backward compatibility
@@ -92,7 +92,7 @@ DIMENSIONS:
            "i": "y" if context_type == "row" else None,
            "j": "x" if context_type == "column" else None
        }
-       
+
        for old_var, new_var in deprecated_vars.items():
            if old_var in expression and new_var:
                warnings.warn(
@@ -115,7 +115,7 @@ DIMENSIONS:
 ```python
 STANDARD_VARIABLES = {
     "x": "Column coordinate (0 to width-1)",
-    "y": "Row coordinate (0 to height-1)", 
+    "y": "Row coordinate (0 to height-1)",
     "r": "Red channel value (0-255)",
     "g": "Green channel value (0-255)",
     "b": "Blue channel value (0-255)",

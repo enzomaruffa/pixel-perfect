@@ -61,7 +61,7 @@ def render_operation_browser():
                 operations = category_info["operations"]
 
                 if not operations:
-                    st.info(f"No operations in this category.")
+                    st.info("No operations in this category.")
                     continue
 
                 for op_name, op_info in operations.items():

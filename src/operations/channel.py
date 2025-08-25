@@ -427,6 +427,10 @@ class AlphaGenerator(BaseOperation):
                 alpha_values = _calculate_saturation(r_channel, g_channel, b_channel)
 
             elif self.source == "specific_color":
+                if self.color_target is None:
+                    raise ValidationError(
+                        "color_target is required when source is 'specific_color'"
+                    )
                 # Calculate distance from target color
                 distances = _color_distance(rgb_array, self.color_target)
                 # Convert distance to alpha (closer = more opaque)

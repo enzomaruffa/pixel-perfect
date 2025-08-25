@@ -185,9 +185,9 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        pipeline.add(
-            BlockFilter(block_width=8, block_height=8, condition="checkerboard")
-        ).execute(str(output_path))
+        pipeline.add(BlockFilter(block_width=8, block_height=8, condition="checkerboard")).execute(
+            str(output_path)
+        )
 
         current_image = Image.open(output_path)
 
@@ -205,9 +205,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        pipeline.add(RowShift(selection="odd", shift_amount=5, wrap=True)).execute(
-            str(output_path)
-        )
+        pipeline.add(RowShift(selection="odd", shift_amount=5, wrap=True)).execute(str(output_path))
 
         current_image = Image.open(output_path)
 
@@ -225,9 +223,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        pipeline.add(Mosaic(tile_size=(8, 8), gap_size=2, mode="average")).execute(
-            str(output_path)
-        )
+        pipeline.add(Mosaic(tile_size=(8, 8), gap_size=2, mode="average")).execute(str(output_path))
 
         current_image = Image.open(output_path)
 
@@ -287,9 +283,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        pipeline.add(AspectStretch(target_ratio="1:1", method="stretch")).execute(
-            str(output_path)
-        )
+        pipeline.add(AspectStretch(target_ratio="1:1", method="simple")).execute(str(output_path))
 
         current_image = Image.open(output_path)
 
@@ -452,7 +446,7 @@ class TestComplexPipelineVisual:
             pipeline.add(RowShift(selection="even", shift_amount=2, wrap=True))
             .add(ColumnShift(selection="odd", shift_amount=3, wrap=False))
             .add(RowStretch(rows=[0, 2, 4, 6], factor=1.5))
-            .add(AspectStretch(target_ratio="4:3", method="stretch"))
+            .add(AspectStretch(target_ratio="4:3", method="simple"))
             .execute(str(output_path))
         )
 

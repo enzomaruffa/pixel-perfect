@@ -66,7 +66,7 @@ def render_display_controls():
         st.selectbox(
             "Display Mode",
             available_modes,
-            format_func=lambda x: mode_labels.get(x, x),
+            format_func=lambda x: mode_labels.get(x, str(x)) if x is not None else "Unknown",
             index=available_modes.index("side_by_side") if "side_by_side" in available_modes else 0,
             key="display_mode",
         )

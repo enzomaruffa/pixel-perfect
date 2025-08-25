@@ -23,9 +23,9 @@ BUILT_IN_PRESETS = {
         "operations": [
             {
                 "type": "BlockFilter",
-                "params": {"block_size": 8, "condition": "average_brightness", "threshold": 128},
+                "params": {"block_width": 8, "block_height": 8, "condition": "checkerboard"},
             },
-            {"type": "Mosaic", "params": {"tile_size": 16, "gap_size": 2, "mode": "average"}},
+            {"type": "Mosaic", "params": {"tile_size": (16, 16), "gap_size": 2, "mode": "average"}},
         ],
     },
     "retro-effect": {

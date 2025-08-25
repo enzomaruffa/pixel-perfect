@@ -94,7 +94,7 @@ Simple, clean interface:
    def load_pipeline_from_json(json_data):
        # Validate format
        validate_pipeline_format(json_data)
-       
+
        # Convert to operation configs
        operations = []
        for op_data in json_data["operations"]:
@@ -106,7 +106,7 @@ Simple, clean interface:
                "params": op_data["params"],
                "enabled": op_data.get("enabled", True)
            })
-       
+
        return operations
    ```
 
@@ -114,7 +114,7 @@ Simple, clean interface:
    ```python
    def render_pipeline_save_load():
        col1, col2 = st.columns(2)
-       
+
        with col1:
            if st.button("💾 Save Pipeline"):
                pipeline_data = serialize_pipeline(
@@ -128,7 +128,7 @@ Simple, clean interface:
                    file_name=f"{pipeline_data['name']}.json",
                    mime="application/json"
                )
-       
+
        with col2:
            uploaded_file = st.file_uploader("📁 Load Pipeline", type="json")
            if uploaded_file:

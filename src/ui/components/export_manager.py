@@ -152,6 +152,11 @@ def render_image_export():
         # Watermark options
         add_watermark_option = st.checkbox("Add Watermark", value=False, key="export_add_watermark")
 
+        # Initialize watermark variables with defaults
+        watermark_text = "Pixel Perfect"
+        watermark_position = "bottom_right"
+        watermark_opacity = 0.7
+
         if add_watermark_option:
             watermark_text = st.text_input(
                 "Watermark Text", value="Pixel Perfect", key="export_watermark_text"
@@ -370,6 +375,8 @@ def render_batch_export():
 
     with col1:
         batch_watermark = st.checkbox("Add Watermark", key="batch_watermark")
+        # Initialize with default value
+        batch_watermark_text = "Pixel Perfect"
         if batch_watermark:
             batch_watermark_text = st.text_input(
                 "Watermark Text", "Pixel Perfect", key="batch_watermark_text"

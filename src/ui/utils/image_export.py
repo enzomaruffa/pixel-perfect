@@ -18,7 +18,7 @@ def export_image(
     buffer = io.BytesIO()
 
     # Handle format-specific options
-    export_kwargs = {"format": format_name.upper()}
+    export_kwargs: dict[str, Any] = {"format": format_name.upper()}
 
     if format_name.upper() == "JPEG":
         # Ensure RGB mode for JPEG
@@ -32,28 +32,22 @@ def export_image(
         elif image.mode not in ("RGB", "L"):
             image = image.convert("RGB")
 
-        export_kwargs.update(
-            {
-                "quality": quality,
-                "optimize": optimize,
-                "progressive": kwargs.get("progressive", False),
-            }
-        )
+        export_kwargs["quality"] = quality
+        export_kwargs["optimize"] = optimize
+        export_kwargs["progressive"] = kwargs.get("progressive", False)
 
     elif format_name.upper() == "PNG":
-        export_kwargs.update(
-            {"optimize": optimize, "compress_level": kwargs.get("compress_level", 6)}
-        )
+        export_kwargs["optimize"] = optimize
+        export_kwargs["compress_level"] = kwargs.get("compress_level", 6)
 
     elif format_name.upper() == "WEBP":
-        export_kwargs.update(
-            {"quality": quality, "optimize": optimize, "lossless": kwargs.get("lossless", False)}
-        )
+        export_kwargs["quality"] = quality
+        export_kwargs["optimize"] = optimize
+        export_kwargs["lossless"] = kwargs.get("lossless", False)
 
     elif format_name.upper() == "TIFF":
-        export_kwargs.update(
-            {"compression": kwargs.get("compression", "lzw"), "optimize": optimize}
-        )
+        export_kwargs["compression"] = kwargs.get("compression", "lzw")
+        export_kwargs["optimize"] = optimize
 
     # Export image
     image.save(buffer, **export_kwargs)
@@ -271,8 +265,10 @@ def get_image_metadata(image: Image.Image) -> dict[str, Any]:
     }
 
     # Add EXIF data if available
-    if hasattr(image, "_getexif") and image._getexif():
-        metadata["exif"] = image._getexif()
+    if hasattr(image, "getexif"):
+        exif_data = image.getexif()
+        if exif_data:
+            metadata["exif"] = dict(exif_data)
 
     # Add PIL info
     if hasattr(image, "info") and image.info:
@@ -318,7 +314,7 @@ def estimate_export_size(image: Image.Image, format_name: str, quality: int = 95
         return int(pixels * 3)
 
 
-def format_file_size(size_bytes: int) -> str:
+def format_file_size(size_bytes: int | float) -> str:
     """Format file size in human readable format."""
 
     for unit in ["B", "KB", "MB", "GB"]:

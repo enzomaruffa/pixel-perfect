@@ -2,7 +2,7 @@
   "pixel_filter_prime": {
     "created": true,
     "image_size": [
-      128,
+      96,
       96
     ],
     "image_mode": "RGBA",
@@ -22,8 +22,8 @@
   "block_filter_checkerboard": {
     "created": true,
     "image_size": [
-      128,
-      96
+      80,
+      80
     ],
     "image_mode": "RGBA",
     "metadata": {}
@@ -31,8 +31,8 @@
   "row_shift_odd": {
     "created": true,
     "image_size": [
-      128,
-      96
+      30,
+      30
     ],
     "image_mode": "RGBA",
     "metadata": {}
@@ -76,8 +76,8 @@
   "preset_glitch_effect": {
     "created": true,
     "image_size": [
-      80,
-      80
+      96,
+      96
     ],
     "image_mode": "RGBA",
     "metadata": {
@@ -113,5 +113,32 @@
     "metadata": {
       "test": "metadata"
     }
+  },
+  "preset_mosaic_art": {
+    "created": true,
+    "image_size": [
+      80,
+      80
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "aspect_stretch_square": {
+    "created": true,
+    "image_size": [
+      128,
+      128
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
+  },
+  "geometric_transformation": {
+    "created": true,
+    "image_size": [
+      127,
+      96
+    ],
+    "image_mode": "RGBA",
+    "metadata": {}
   }
 }

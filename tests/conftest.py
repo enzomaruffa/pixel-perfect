@@ -268,6 +268,21 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow-running")
 
 
+def create_test_pipeline(input_path, use_cache=False):
+    """Create a Pipeline instance with cache disabled for tests.
+
+    Args:
+        input_path: Path to input image
+        use_cache: Whether to enable cache (default False for tests)
+
+    Returns:
+        Pipeline instance
+    """
+    from core.pipeline import Pipeline
+
+    return Pipeline(str(input_path), use_cache=use_cache)
+
+
 def execute_pipeline_and_verify(pipeline, output_path):
     """Execute pipeline and verify output file exists.
 

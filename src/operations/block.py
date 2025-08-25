@@ -278,6 +278,8 @@ class BlockFilter(BaseOperation):
 
             # Determine which blocks to keep
             if self.condition == "custom":
+                if self.keep_blocks is None:
+                    raise ValidationError("keep_blocks is required when condition is 'custom'")
                 keep_indices = set(self.keep_blocks)
             else:
                 keep_indices = set(_select_blocks(self.condition, grid_dims))
@@ -499,6 +501,8 @@ class BlockRotate(BaseOperation):
             if self.selection == "all":
                 rotate_indices = set(range(total_blocks))
             elif self.selection == "custom":
+                if self.indices is None:
+                    raise ValidationError("indices is required when selection is 'custom'")
                 rotate_indices = set(self.indices)
             else:
                 rotate_indices = set(_select_blocks(self.selection, grid_dims))
@@ -522,6 +526,8 @@ class BlockRotate(BaseOperation):
                     rotated_block = np.rot90(block, k=2)  # 180°
                 elif self.rotation == 270:
                     rotated_block = np.rot90(block, k=3)  # 270° counter-clockwise (90° clockwise)
+                else:
+                    rotated_block = block  # No rotation
 
                 _place_block(result_pixels, rotated_block, bounds)
 

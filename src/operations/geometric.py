@@ -320,7 +320,7 @@ class RadialStretch(BaseOperation):
             if cx < 0 or cx >= context.width or cy < 0 or cy >= context.height:
                 raise ValidationError(
                     f"Center point ({cx}, {cy}) is outside image bounds "
-                    f"({context.width}x{context.height})"
+                    + f"({context.width}x{context.height})"
                 )
 
         # Check for extreme stretch factors

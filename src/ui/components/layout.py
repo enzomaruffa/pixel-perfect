@@ -73,14 +73,15 @@ def execute_pipeline_inline():
 
     except Exception as e:
         # Use user-friendly error messages
-        from ui.utils.error_translator import translate_error, format_error_message
+        from ui.utils.error_translator import translate_error
+
         error_info = translate_error(e, context="pipeline_execution")
-        
+
         st.error(f"❌ {error_info['message']}")
-        
+
         if error_info.get("suggestion"):
             st.info(f"💡 {error_info['suggestion']}")
-        
+
         # Show technical details in expander for debugging
         with st.expander("🔧 Technical Details", expanded=False):
             st.code(str(e))
@@ -244,6 +245,7 @@ def render_main_content():
                 # Pipeline Management Section
                 st.divider()
                 from ui.components.pipeline_manager import render_pipeline_actions
+
                 render_pipeline_actions()
 
                 # Execute pipeline if button clicked or auto-preview is on with changes
@@ -252,12 +254,13 @@ def render_main_content():
                 ):
                     with st.spinner("🔄 Executing pipeline..."):
                         execute_pipeline_inline()
-            
+
             # Show pipeline manager modal if requested
             if st.session_state.get("show_pipeline_manager", False):
                 st.session_state.show_pipeline_manager = False  # Reset flag
                 with st.container():
                     from ui.components.pipeline_manager import render_pipeline_save_load
+
                     render_pipeline_save_load()
 
     with tab2:
@@ -399,14 +402,15 @@ def execute_pipeline_realtime(executor, execute_up_to=None, force_refresh=False)
 
     except Exception as e:
         # Use user-friendly error messages
-        from ui.utils.error_translator import translate_error, format_error_message
+        from ui.utils.error_translator import translate_error
+
         error_info = translate_error(e, context="realtime_execution")
-        
+
         st.error(f"❌ {error_info['message']}")
-        
+
         if error_info.get("suggestion"):
             st.info(f"💡 {error_info['suggestion']}")
-        
+
         # Show technical details in expander for debugging
         with st.expander("🔧 Technical Details", expanded=False):
             st.code(str(e))

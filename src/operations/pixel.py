@@ -16,7 +16,8 @@ class PixelFilterConfig(BaseModel):
     """Configuration for PixelFilter operation."""
 
     condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = Field(
-        "prime", description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)"
+        "prime",
+        description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)",
     )
     custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
     fill_color: tuple[int, int, int, int] = Field(
@@ -49,7 +50,7 @@ class PixelFilterConfig(BaseModel):
     def validate_fill_color(cls, v: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
         """Validate fill color values."""
         validated = validate_color_tuple(v, channels=4)
-        # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple  
+        # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple
         return validated  # type: ignore[return-value]
 
 
@@ -95,7 +96,8 @@ class PixelFilter(BaseOperation):
     """Filter pixels based on index conditions."""
 
     condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = Field(
-        "prime", description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)"
+        "prime",
+        description="Condition for filtering pixels (prime numbers, odd/even indices, fibonacci sequence, or custom expression)",
     )
     custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
     fill_color: tuple[int, int, int, int] = Field(
@@ -126,7 +128,7 @@ class PixelFilter(BaseOperation):
     def validate_fill_color(cls, v: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
         """Validate fill color values."""
         validated = validate_color_tuple(v, channels=4)
-        # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple  
+        # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple
         return validated  # type: ignore[return-value]
 
     def validate_operation(self, context: ImageContext) -> ImageContext:

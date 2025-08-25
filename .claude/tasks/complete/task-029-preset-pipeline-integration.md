@@ -57,15 +57,15 @@ Convert preset format to pipeline operations:
    ```python
    def convert_preset_to_pipeline(preset_config):
        operations = []
-       
+
        for i, op_config in enumerate(preset_config["operations"]):
            # Get operation class
            operation_class = get_operation_class(op_config["type"])
-           
+
            # Generate unique ID and name
            operation_id = str(uuid.uuid4())
            operation_name = f"{op_config['type']}"
-           
+
            # Create pipeline operation config
            operations.append({
                "id": operation_id,
@@ -74,7 +74,7 @@ Convert preset format to pipeline operations:
                "params": op_config["params"],
                "enabled": True
            })
-       
+
        return operations
    ```
 
@@ -82,23 +82,23 @@ Convert preset format to pipeline operations:
    ```python
    def render_preset_browser():
        st.subheader("📋 Load Preset")
-       
+
        presets = get_all_presets()
-       
+
        for preset_name, preset_config in presets.items():
            with st.expander(f"**{preset_name}**"):
                st.write(preset_config["description"])
-               
+
                # Show operations preview
                st.write("**Operations:**")
                for op in preset_config["operations"]:
                    st.write(f"• {op['type']}")
-               
+
                col1, col2 = st.columns(2)
                with col1:
                    if st.button("📥 Replace Pipeline", key=f"replace_{preset_name}"):
                        load_preset_to_pipeline(preset_config, replace=True)
-               
+
                with col2:
                    if st.button("➕ Add to Pipeline", key=f"append_{preset_name}"):
                        load_preset_to_pipeline(preset_config, replace=False)
@@ -108,14 +108,14 @@ Convert preset format to pipeline operations:
    ```python
    def load_preset_to_pipeline(preset_config, replace=True):
        new_operations = convert_preset_to_pipeline(preset_config)
-       
+
        if replace:
            st.session_state.pipeline_operations = new_operations
            st.success(f"Pipeline replaced with {len(new_operations)} operations")
        else:
            st.session_state.pipeline_operations.extend(new_operations)
            st.success(f"Added {len(new_operations)} operations to pipeline")
-       
+
        st.rerun()
    ```
 
@@ -124,13 +124,13 @@ Convert preset format to pipeline operations:
    ```python
    # In layout.py - Pipeline Builder tab
    col1, col2, col3 = st.columns([1, 1, 1])
-   
+
    with col1:
        render_operation_browser()  # Existing
-   
+
    with col2:
        render_pipeline_summary()  # Existing
-   
+
    with col3:
        render_preset_browser()     # New
    ```
