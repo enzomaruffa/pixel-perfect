@@ -149,6 +149,9 @@ def generate_parameter_form(
     if not config_model:
         st.error(f"Could not find Pydantic model for {operation_class.__name__}")
         return {}
+    
+    # Import error translation here to avoid circular imports
+    from ui.utils.error_translator import translate_error, format_error_message
 
     st.subheader(f"⚙️ {operation_class.__name__} Parameters")
 
@@ -193,7 +196,27 @@ def generate_parameter_form(
             key_prefix=key_prefix,
         )
 
-        form_values[field_name] = widget_value
+        # Validate parameter value and show user-friendly errors
+        try:
+            # Test validation by creating a temporary model instance
+            test_values = {**form_values, field_name: widget_value}
+            config_model(**test_values)
+            form_values[field_name] = widget_value
+            
+            # Show success indicator for changed values
+            if widget_value != current_value:
+                st.success("✓", help="Valid parameter value")
+                
+        except Exception as e:
+            # Show user-friendly error message
+            error_info = translate_error(e, context=field_name)
+            st.error(error_info["message"])
+            
+            if error_info.get("suggestion"):
+                st.info(f"💡 {error_info['suggestion']}")
+            
+            # Use the invalid value but mark it as problematic
+            form_values[field_name] = widget_value
 
     return form_values
 

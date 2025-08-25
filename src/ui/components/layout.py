@@ -72,7 +72,18 @@ def execute_pipeline_inline():
             st.rerun()
 
     except Exception as e:
-        st.error(f"❌ Execution failed: {str(e)}")
+        # Use user-friendly error messages
+        from ui.utils.error_translator import translate_error, format_error_message
+        error_info = translate_error(e, context="pipeline_execution")
+        
+        st.error(f"❌ {error_info['message']}")
+        
+        if error_info.get("suggestion"):
+            st.info(f"💡 {error_info['suggestion']}")
+        
+        # Show technical details in expander for debugging
+        with st.expander("🔧 Technical Details", expanded=False):
+            st.code(str(e))
 
 
 def render_sidebar_preview():
@@ -387,7 +398,18 @@ def execute_pipeline_realtime(executor, execute_up_to=None, force_refresh=False)
         st.session_state.parameters_changed = False
 
     except Exception as e:
-        st.error(f"❌ Execution failed: {str(e)}")
+        # Use user-friendly error messages
+        from ui.utils.error_translator import translate_error, format_error_message
+        error_info = translate_error(e, context="realtime_execution")
+        
+        st.error(f"❌ {error_info['message']}")
+        
+        if error_info.get("suggestion"):
+            st.info(f"💡 {error_info['suggestion']}")
+        
+        # Show technical details in expander for debugging
+        with st.expander("🔧 Technical Details", expanded=False):
+            st.code(str(e))
 
 
 def render_execution_stats(executor):
