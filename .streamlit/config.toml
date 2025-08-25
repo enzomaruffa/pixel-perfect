@@ -1,0 +1,28 @@
+[server]
+# Streamlit Cloud configuration
+port = 8501
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+# Prevent the browser from opening automatically (useful for deployment)
+gatherUsageStats = false
+
+[theme]
+# Optional: Set a consistent theme
+primaryColor = "#FF6B6B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+
+[client]
+# Optimize for deployment
+caching = true
+
+[runner]
+# Performance optimizations
+fastReruns = true
+enforceSerializableSessionState = false
+
+[logger]
+level = "info"

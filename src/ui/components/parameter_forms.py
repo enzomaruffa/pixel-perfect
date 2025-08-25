@@ -21,20 +21,36 @@ def render_operation_parameter_editor():
 
     st.header(f"🔧 Configure {operation_config['name']}")
 
-    # Generate parameter form
-    with st.form(key="parameter_form"):
-        form_values = generate_parameter_form(operation_class, current_params)
+    # Generate parameter form WITHOUT st.form for reactivity
+    form_values = generate_parameter_form(operation_class, current_params)
 
-        # Form submission buttons
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            apply_changes = st.form_submit_button("✅ Apply Changes", type="primary")
-        with col2:
-            reset_defaults = st.form_submit_button("🔄 Reset to Defaults")
-        with col3:
-            cancel_editing = st.form_submit_button("❌ Cancel")
+    # Real-time validation preview
+    with st.expander("🔍 Validation Preview", expanded=False):
+        try:
+            config_model = extract_pydantic_model_from_operation(operation_class)
+            if config_model:
+                # Try to validate with current values
+                validated = config_model(**form_values)
+                st.success("✅ All parameters valid")
+                st.json(validated.model_dump())
+        except ValidationError as e:
+            st.warning("⚠️ Current values have validation issues:")
+            for error in e.errors():
+                field = error["loc"][0] if error["loc"] else "Unknown"
+                st.write(f"• **{field}**: {error['msg']}")
+        except Exception:
+            pass  # Silently ignore other errors in preview
 
-    # Handle form submissions
+    # Action buttons
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        apply_changes = st.button("✅ Apply Changes", type="primary", key="apply_params")
+    with col2:
+        reset_defaults = st.button("🔄 Reset to Defaults", key="reset_params")
+    with col3:
+        cancel_editing = st.button("❌ Cancel", key="cancel_params")
+
+    # Handle button clicks
     if apply_changes:
         try:
             # Validate parameters using Pydantic model
@@ -135,7 +151,9 @@ def render_pipeline_with_edit_buttons():
                 st.write(f"**{param_name}**: {param_value}")
 
     # Clear all button
-    if st.button("🗑️ Clear All", help="Remove all operations from pipeline"):
+    if st.button(
+        "🗑️ Clear All", help="Remove all operations from pipeline", key="pipeline_summary_clear_all"
+    ):
         st.session_state.pipeline_operations = []
         st.session_state.parameters_changed = True  # Trigger auto-execution
         st.rerun()

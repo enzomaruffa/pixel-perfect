@@ -90,24 +90,36 @@ class PixelSortConfig(BaseModel):
 class PixelFilter(BaseOperation):
     """Filter pixels based on index conditions."""
 
-    condition: str = "prime"
-    custom_expression: str | None = None
-    fill_color: tuple[int, int, int, int] = (0, 0, 0, 0)
-    preserve_alpha: bool = True
-    index_mode: str = "linear"
+    condition: Literal["prime", "odd", "even", "fibonacci", "custom"] = "prime"
+    custom_expression: str | None = Field(None, description="Custom expression using 'i' for index")
+    fill_color: tuple[int, int, int, int] = Field(
+        (0, 0, 0, 0), description="RGBA fill color for filtered pixels"
+    )
+    preserve_alpha: bool = Field(True, description="Keep original alpha channel")
+    index_mode: Literal["linear", "2d"] = Field("linear", description="Index calculation mode")
 
-    def __init__(self, **kwargs):
-        # Validate parameters using the config class
-        config = PixelFilterConfig(**kwargs)
+    @field_validator("custom_expression")
+    @classmethod
+    def validate_custom_expression(cls, v: str | None, values) -> str | None:
+        """Validate custom expression if provided."""
+        if v is not None:
+            validate_expression_safe(v)
+        return v
 
-        # Set validated parameters as instance attributes
-        super().__init__(
-            condition=config.condition,
-            custom_expression=config.custom_expression,
-            fill_color=config.fill_color,
-            preserve_alpha=config.preserve_alpha,
-            index_mode=config.index_mode,
-        )
+    @model_validator(mode="after")
+    def validate_custom_expression_required(self) -> "PixelFilter":
+        """Validate model after all fields are set."""
+        if self.condition == "custom" and not self.custom_expression:
+            raise ValueError("custom_expression required when condition='custom'")
+        elif self.condition != "custom" and self.custom_expression is not None:
+            raise ValueError("custom_expression only valid when condition='custom'")
+        return self
+
+    @field_validator("fill_color")
+    @classmethod
+    def validate_fill_color(cls, v: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+        """Validate fill color values."""
+        return validate_color_tuple(v, channels=4)
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""
@@ -273,16 +285,22 @@ class PixelFilter(BaseOperation):
 class PixelMath(BaseOperation):
     """Apply mathematical transformations to pixel values."""
 
-    expression: str
-    channels: list[str] = ["r", "g", "b"]
-    clamp: bool = True
+    expression: str = Field(..., description="Math expression using r,g,b,a,x,y variables")
+    channels: list[str] = Field(["r", "g", "b"], description="Channels to affect")
+    clamp: bool = Field(True, description="Clamp results to valid range [0, 255]")
 
-    def __init__(self, **kwargs):
-        # Validate parameters using the config class
-        config = PixelMathConfig(**kwargs)
+    @field_validator("expression")
+    @classmethod
+    def validate_expression(cls, v: str) -> str:
+        """Validate mathematical expression."""
+        validate_expression_safe(v)
+        return v
 
-        # Set validated parameters as instance attributes
-        super().__init__(expression=config.expression, channels=config.channels, clamp=config.clamp)
+    @field_validator("channels")
+    @classmethod
+    def validate_channels(cls, v: list[str]) -> list[str]:
+        """Validate channel list."""
+        return validate_channel_list(v)
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""
@@ -373,22 +391,18 @@ class PixelMath(BaseOperation):
 class PixelSort(BaseOperation):
     """Sort pixels within regions based on criteria."""
 
-    direction: str = "horizontal"
-    sort_by: str = "brightness"
-    threshold: float | None = None
-    reverse: bool = False
+    direction: Literal["horizontal", "vertical", "diagonal"] = "horizontal"
+    sort_by: Literal["brightness", "hue", "saturation", "red", "green", "blue"] = "brightness"
+    threshold: float | None = Field(None, description="Only sort pixels meeting threshold")
+    reverse: bool = Field(False, description="Reverse sort order")
 
-    def __init__(self, **kwargs):
-        # Validate parameters using the config class
-        config = PixelSortConfig(**kwargs)
-
-        # Set validated parameters as instance attributes
-        super().__init__(
-            direction=config.direction,
-            sort_by=config.sort_by,
-            threshold=config.threshold,
-            reverse=config.reverse,
-        )
+    @field_validator("threshold")
+    @classmethod
+    def validate_threshold(cls, v: float | None) -> float | None:
+        """Validate threshold value."""
+        if v is not None and not (0 <= v <= 255):
+            raise ValueError("Threshold must be between 0 and 255")
+        return v
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""

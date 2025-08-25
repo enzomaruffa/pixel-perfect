@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 from PIL import Image
-from tests.conftest import ImageComparison, create_test_image
 
 from core.pipeline import Pipeline
 from operations.aspect import AspectStretch
@@ -18,6 +17,7 @@ from operations.pattern import Dither, Mosaic
 from operations.pixel import PixelFilter
 from operations.row import RowShift, RowStretch
 from presets import get_preset
+from tests.conftest import ImageComparison, create_test_image
 
 
 class VisualRegressionManager:
@@ -150,7 +150,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255))).execute(
+        pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255))).execute(
             str(output_path)
         )
 
@@ -185,7 +185,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(
+        pipeline.add(
             BlockFilter(block_width=8, block_height=8, condition="checkerboard")
         ).execute(str(output_path))
 
@@ -205,7 +205,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(RowShift(selection="odd", shift_amount=5, wrap=True)).execute(
+        pipeline.add(RowShift(selection="odd", shift_amount=5, wrap=True)).execute(
             str(output_path)
         )
 
@@ -225,7 +225,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(Mosaic(tile_size=(8, 8), gap_size=2, mode="average")).execute(
+        pipeline.add(Mosaic(tile_size=(8, 8), gap_size=2, mode="average")).execute(
             str(output_path)
         )
 
@@ -247,7 +247,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(
+        pipeline.add(
             ChannelSwap(red_source="green", green_source="blue", blue_source="red")
         ).execute(str(output_path))
 
@@ -267,7 +267,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(Dither(method="floyd_steinberg", levels=4)).execute(str(output_path))
+        pipeline.add(Dither(method="floyd_steinberg", levels=4)).execute(str(output_path))
 
         current_image = Image.open(output_path)
 
@@ -287,7 +287,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(AspectStretch(target_ratio="1:1", method="stretch")).execute(
+        pipeline.add(AspectStretch(target_ratio="1:1", method="stretch")).execute(
             str(output_path)
         )
 
@@ -307,7 +307,7 @@ class TestVisualRegression:
         output_path = temp_dir / f"{test_name}_output.png"
 
         pipeline = Pipeline(str(standard_test_image))
-        context = pipeline.add(GridWarp(axis="horizontal", frequency=2.0, amplitude=5.0)).execute(
+        pipeline.add(GridWarp(axis="horizontal", frequency=2.0, amplitude=5.0)).execute(
             str(output_path)
         )
 
@@ -350,7 +350,7 @@ class TestPresetVisualRegression:
             elif op_config["type"] == "ColumnShift":
                 pipeline.add(ColumnShift(**op_config["params"]))
 
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
         current_image = Image.open(output_path)
 
         if not visual_regression.has_reference(test_name):
@@ -379,7 +379,7 @@ class TestPresetVisualRegression:
             elif op_config["type"] == "Mosaic":
                 pipeline.add(Mosaic(**op_config["params"]))
 
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
         current_image = Image.open(output_path)
 
         if not visual_regression.has_reference(test_name):
@@ -406,7 +406,7 @@ class TestComplexPipelineVisual:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 128)))
             .add(BlockFilter(block_width=6, block_height=6, condition="checkerboard"))
             .add(RowShift(selection="odd", shift_amount=3, wrap=True))
@@ -448,7 +448,7 @@ class TestComplexPipelineVisual:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(RowShift(selection="even", shift_amount=2, wrap=True))
             .add(ColumnShift(selection="odd", shift_amount=3, wrap=False))
             .add(RowStretch(rows=[0, 2, 4, 6], factor=1.5))

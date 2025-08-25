@@ -2,12 +2,6 @@
 
 import pytest
 from PIL import Image
-from tests.conftest import (
-    assert_image_dimensions,
-    assert_image_mode,
-    assert_images_similar,
-    create_test_image,
-)
 
 from core.pipeline import Pipeline
 from operations.aspect import AspectStretch
@@ -19,6 +13,12 @@ from operations.pattern import Dither, Mosaic
 from operations.pixel import PixelFilter
 from operations.row import RowShift
 from presets import get_all_presets, get_preset
+from tests.conftest import (
+    assert_image_dimensions,
+    assert_image_mode,
+    assert_images_similar,
+    create_test_image,
+)
 
 
 @pytest.mark.integration
@@ -36,7 +36,7 @@ class TestEndToEndPipelines:
 
         # Create and execute pipeline
         pipeline = Pipeline(str(input_path), verbose=True)
-        context = (
+        (
             pipeline.add(BlockFilter(block_width=8, block_height=8, condition="checkerboard"))
             .add(RowShift(selection="odd", shift_amount=3, wrap=True))
             .add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255)))
@@ -60,7 +60,7 @@ class TestEndToEndPipelines:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(ChannelSwap(red_source="green", green_source="blue", blue_source="red"))
             .add(Dither(method="floyd_steinberg", levels=4))
             .execute(str(output_path))
@@ -80,7 +80,7 @@ class TestEndToEndPipelines:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(RowShift(selection="even", shift_amount=2, wrap=True))
             .add(ColumnShift(selection="odd", shift_amount=3, wrap=False))
             .add(GridWarp(axis="both", frequency=1.0, amplitude=5.0))
@@ -100,7 +100,7 @@ class TestEndToEndPipelines:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = pipeline.add(Mosaic(tile_size=(8, 8), gap_size=1, mode="average")).execute(
+        pipeline.add(Mosaic(tile_size=(8, 8), gap_size=1, mode="average")).execute(
             str(output_path)
         )
 
@@ -128,7 +128,7 @@ class TestEndToEndPipelines:
             elif op_config["type"] == "ColumnShift":
                 pipeline.add(ColumnShift(**op_config["params"]))
 
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
         assert output_path.exists()
 
     def test_all_presets_executable(self, temp_dir):
@@ -167,7 +167,7 @@ class TestEndToEndPipelines:
                         pipeline.add(Dither(**op_params))
                     # Add more operation types as needed
 
-                result = pipeline.execute(str(output_path))
+                pipeline.execute(str(output_path))
                 assert output_path.exists(), f"Preset {preset_name} failed to produce output"
 
             except Exception as e:
@@ -242,7 +242,7 @@ class TestEndToEndPipelines:
                 PixelFilter(condition="even" if i % 2 == 0 else "odd", fill_color=(255, 0, 0, 128))
             )
 
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
         assert output_path.exists()
 
         # Verify output is still valid
@@ -266,7 +266,7 @@ class TestLargeImagePipelines:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255)))
             .add(RowShift(selection="odd", shift_amount=5))
             .execute(str(output_path))
@@ -286,7 +286,7 @@ class TestLargeImagePipelines:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(RowShift(selection="all", shift_amount=10, wrap=True))
             .add(AspectStretch(target_ratio="2:1", method="stretch"))
             .execute(str(output_path))
@@ -312,7 +312,7 @@ class TestPipelineEdgeCases:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = pipeline.add(PixelFilter(condition="all", fill_color=(255, 0, 0, 255))).execute(
+        pipeline.add(PixelFilter(condition="all", fill_color=(255, 0, 0, 255))).execute(
             str(output_path)
         )
 
@@ -329,7 +329,7 @@ class TestPipelineEdgeCases:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
 
         assert output_path.exists()
         output_img = Image.open(output_path)

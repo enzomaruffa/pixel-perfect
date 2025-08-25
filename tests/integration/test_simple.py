@@ -2,11 +2,11 @@
 
 import pytest
 from PIL import Image
-from tests.conftest import assert_image_dimensions, assert_image_mode, create_test_image
 
 from core.pipeline import Pipeline
 from operations.pixel import PixelFilter
 from operations.row import RowShift
+from tests.conftest import assert_image_dimensions, assert_image_mode, create_test_image
 
 
 @pytest.mark.integration
@@ -24,7 +24,7 @@ class TestSimpleIntegration:
 
         # Execute simple pipeline
         pipeline = Pipeline(str(input_path))
-        context = pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 255))).execute(
+        pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 255))).execute(
             str(output_path)
         )
 
@@ -43,7 +43,7 @@ class TestSimpleIntegration:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(PixelFilter(condition="odd", fill_color=(0, 255, 0, 255)))
             .add(RowShift(selection="even", shift_amount=2, wrap=True))
             .execute(str(output_path))

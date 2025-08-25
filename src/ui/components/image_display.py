@@ -97,7 +97,7 @@ def render_single_image_advanced(image: Image.Image, title: str):
     display_height = min(600, int(600 * zoom))
 
     display_image = optimize_image_for_display(image, display_width, display_height)
-    st.image(display_image, use_column_width=(zoom == 1.0))
+    st.image(display_image, use_container_width=(zoom == 1.0))
 
     # Show image info if requested
     if st.session_state.get("show_image_info"):
@@ -123,7 +123,7 @@ def render_side_by_side_advanced():
         original_display = optimize_image_for_display(
             st.session_state.original_image, display_width, display_height
         )
-        st.image(original_display, use_column_width=(zoom == 1.0))
+        st.image(original_display, use_container_width=(zoom == 1.0))
 
         if st.session_state.get("show_image_info"):
             render_image_info(st.session_state.original_image, "Original")
@@ -133,7 +133,7 @@ def render_side_by_side_advanced():
         processed_display = optimize_image_for_display(
             st.session_state.processed_image, display_width, display_height
         )
-        st.image(processed_display, use_column_width=(zoom == 1.0))
+        st.image(processed_display, use_container_width=(zoom == 1.0))
 
         if st.session_state.get("show_image_info"):
             render_image_info(st.session_state.processed_image, "Processed")
@@ -195,13 +195,13 @@ def render_slider_comparison():
             processed_display = optimize_image_for_display(
                 st.session_state.processed_image, 400, 400
             )
-            st.image(processed_display, use_column_width=True)
+            st.image(processed_display, use_container_width=True)
 
     with col2:
         if reveal_percent < 100:
             st.write("**🖼️ Original**")
             original_display = optimize_image_for_display(st.session_state.original_image, 400, 400)
-            st.image(original_display, use_column_width=True)
+            st.image(original_display, use_container_width=True)
 
 
 def render_toggle_comparison():
@@ -243,23 +243,23 @@ def render_split_screen_comparison():
         with col1:
             st.write("**🖼️ Original**")
             original_display = optimize_image_for_display(st.session_state.original_image, 400, 300)
-            st.image(original_display, use_column_width=True)
+            st.image(original_display, use_container_width=True)
 
         with col2:
             st.write("**✨ Processed**")
             processed_display = optimize_image_for_display(
                 st.session_state.processed_image, 400, 300
             )
-            st.image(processed_display, use_column_width=True)
+            st.image(processed_display, use_container_width=True)
     else:
         # Vertical split - show one above the other
         st.write("**🖼️ Original**")
         original_display = optimize_image_for_display(st.session_state.original_image, 600, 300)
-        st.image(original_display, use_column_width=True)
+        st.image(original_display, use_container_width=True)
 
         st.write("**✨ Processed**")
         processed_display = optimize_image_for_display(st.session_state.processed_image, 600, 300)
-        st.image(processed_display, use_column_width=True)
+        st.image(processed_display, use_container_width=True)
 
 
 def render_overlay_comparison():
@@ -279,7 +279,7 @@ def render_overlay_comparison():
     # Show base image (original)
     st.write("*Base: Original Image*")
     original_display = optimize_image_for_display(st.session_state.original_image, 600, 400)
-    st.image(original_display, use_column_width=True)
+    st.image(original_display, use_container_width=True)
 
     # Note about overlay (in real implementation, this would be a true overlay)
     st.info(f"💡 Processed image would be overlaid at {opacity:.1%} opacity")

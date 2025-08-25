@@ -9,21 +9,23 @@ from pydantic import Field, field_validator, model_validator
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
-from utils.validation import validate_color_tuple
+from utils.validation import validate_color_tuple, validate_expression_safe
 
 
 def _select_columns(selection: str, width: int, **kwargs) -> np.ndarray:
     """Select column indices based on selection criteria.
 
     Args:
-        selection: Selection method ("odd", "even", "prime", "every_n", "custom", "gradient")
+        selection: Selection method ("all", "odd", "even", "prime", "every_n", "custom", "gradient", "formula")
         width: Total number of columns in image
-        **kwargs: Additional parameters (n, indices, etc.)
+        **kwargs: Additional parameters (n, indices, formula, etc.)
 
     Returns:
         Array of selected column indices
     """
-    if selection == "odd":
+    if selection == "all":
+        return np.arange(width)
+    elif selection == "odd":
         return np.arange(1, width, 2)
     elif selection == "even":
         return np.arange(0, width, 2)
@@ -45,6 +47,9 @@ def _select_columns(selection: str, width: int, **kwargs) -> np.ndarray:
     elif selection == "gradient":
         # For gradient mode, return all columns (shift calculation happens elsewhere)
         return np.arange(width)
+    elif selection == "formula":
+        # For formula mode, return all columns (shift calculation happens elsewhere)
+        return np.arange(width)
     else:
         raise ValidationError(f"Unknown selection method: {selection}")
 
@@ -65,16 +70,71 @@ def _get_prime_indices(max_value: int) -> np.ndarray:
     return np.where(is_prime)[0]
 
 
+def _calculate_formula_shifts(formula: str, width: int) -> np.ndarray:
+    """Calculate shift amounts for each column using a formula.
+
+    Args:
+        formula: Mathematical expression using 'j' for column index (0-based)
+        width: Number of columns
+
+    Returns:
+        Array of shift amounts for each column
+    """
+    shifts = np.zeros(width, dtype=int)
+
+    # Safe evaluation with limited scope
+    allowed_names = {
+        # Basic math functions
+        "abs": abs,
+        "min": min,
+        "max": max,
+        "round": round,
+        "int": int,
+        "float": float,
+        # Math module functions
+        "sin": np.sin,
+        "cos": np.cos,
+        "tan": np.tan,
+        "sqrt": np.sqrt,
+        "pow": pow,
+        "pi": np.pi,
+        "e": np.e,
+        # Numpy functions
+        "floor": np.floor,
+        "ceil": np.ceil,
+    }
+
+    for j in range(width):
+        try:
+            # Create evaluation context with column index
+            context = allowed_names.copy()
+            context["j"] = j
+            context["width"] = width
+
+            # Evaluate formula and convert to int
+            result = eval(formula, {"__builtins__": {}}, context)
+            shifts[j] = int(result)
+        except Exception as e:
+            raise ProcessingError(f"Error evaluating formula '{formula}' at column {j}: {e}") from e
+
+    return shifts
+
+
 class ColumnShift(BaseOperation):
     """Translate entire columns vertically."""
 
-    selection: Literal["odd", "even", "prime", "every_n", "custom", "gradient"] = "odd"
+    selection: Literal[
+        "all", "odd", "even", "prime", "every_n", "custom", "gradient", "formula"
+    ] = "odd"
     n: int | None = Field(None, ge=1, description="For every_n selection")
     indices: list[int] | None = Field(None, description="For custom selection")
     shift_amount: int = Field(0, description="Pixels to shift (negative=up, positive=down)")
     wrap: bool = Field(True, description="Wrap around vs fill with color")
     fill_color: tuple[int, int, int, int] = Field((0, 0, 0, 0), description="RGBA fill color")
     gradient_start: int = Field(0, description="Starting shift for gradient mode")
+    formula: str | None = Field(
+        None, description="Mathematical formula for formula mode (use 'j' for column index)"
+    )
 
     @field_validator("fill_color")
     @classmethod
@@ -88,6 +148,14 @@ class ColumnShift(BaseOperation):
             raise ValidationError("Custom indices cannot be empty")
         return v
 
+    @field_validator("formula")
+    @classmethod
+    def validate_formula(cls, v):
+        if v is not None:
+            # Validate the formula is safe and syntactically correct
+            validate_expression_safe(v)
+        return v
+
     @model_validator(mode="after")
     def validate_selection_parameters(self) -> "ColumnShift":
         """Validate that required parameters are provided for each selection type."""
@@ -95,6 +163,8 @@ class ColumnShift(BaseOperation):
             raise ValueError("Parameter 'n' is required when selection='every_n'")
         elif self.selection == "custom" and self.indices is None:
             raise ValueError("Parameter 'indices' is required when selection='custom'")
+        elif self.selection == "formula" and self.formula is None:
+            raise ValueError("Parameter 'formula' is required when selection='formula'")
         return self
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
@@ -106,7 +176,7 @@ class ColumnShift(BaseOperation):
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
         config_str = f"{self.selection}_{self.n}_{self.indices}_{self.shift_amount}"
-        config_str += f"_{self.wrap}_{self.fill_color}_{self.gradient_start}"
+        config_str += f"_{self.wrap}_{self.fill_color}_{self.gradient_start}_{self.formula}"
         return f"columnshift_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
@@ -121,24 +191,36 @@ class ColumnShift(BaseOperation):
             pixels = np.array(rgba_image)
             height, width = pixels.shape[:2]
 
-            # Get columns to shift
+            # Get columns to shift and calculate shift amounts
             if self.selection == "gradient":
                 selected_columns = np.arange(width)
+                # Pre-calculate all shift amounts for gradient
+                column_shifts = np.array(
+                    [
+                        int(
+                            self.gradient_start
+                            + (self.shift_amount - self.gradient_start) * j / (width - 1)
+                        )
+                        for j in range(width)
+                    ]
+                )
+            elif self.selection == "formula":
+                selected_columns = np.arange(width)
+                # Calculate shift amounts using formula
+                column_shifts = _calculate_formula_shifts(self.formula, width)
             else:
                 selected_columns = _select_columns(
                     self.selection, width, n=self.n, indices=self.indices
                 )
+                # Use constant shift amount for other modes
+                column_shifts = np.full(width, self.shift_amount)
 
             # Create output array
             result_pixels = pixels.copy()
 
             for col_idx in selected_columns:
-                if self.selection == "gradient":
-                    # Calculate shift amount based on position in gradient
-                    shift = int(
-                        self.gradient_start
-                        + (self.shift_amount - self.gradient_start) * col_idx / (width - 1)
-                    )
+                if self.selection in ["gradient", "formula"]:
+                    shift = column_shifts[col_idx]
                 else:
                     shift = self.shift_amount
 

@@ -1,0 +1,3 @@
+# System packages needed for image processing
+libgl1-mesa-glx
+libglib2.0-0

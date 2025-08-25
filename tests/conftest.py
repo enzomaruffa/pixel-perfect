@@ -281,7 +281,7 @@ def execute_pipeline_and_verify(pipeline, output_path):
     from pathlib import Path
 
     # Execute pipeline (returns ImageContext)
-    context = pipeline.execute(str(output_path))
+    _ = pipeline.execute(str(output_path))
 
     # Verify output file was created
     output_path = Path(output_path)

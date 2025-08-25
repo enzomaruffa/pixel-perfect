@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from ui.components.export_manager import render_export_manager
 from ui.components.image_comparison import render_comparison_analysis
 from ui.components.image_display import render_advanced_image_display
 from ui.components.image_viewer import render_image_upload
@@ -19,26 +20,106 @@ def render_header():
         st.caption("Sophisticated image processing with visual pipeline builder")
 
     with col2:
-        if st.button("🔄 Reset Pipeline", help="Clear all operations"):
+        if st.button("🔄 Reset Pipeline", help="Clear all operations", key="header_reset_pipeline"):
             reset_pipeline()
             st.rerun()
 
     with col3:
-        if st.button("🗑️ Reset All", help="Clear everything"):
+        if st.button("🗑️ Reset All", help="Clear everything", key="header_reset_all"):
             reset_all()
             st.rerun()
 
 
+def execute_pipeline_inline():
+    """Execute the pipeline inline for quick preview."""
+    if not st.session_state.get("original_image"):
+        st.error("No image loaded")
+        return
+
+    if not st.session_state.get("pipeline_operations"):
+        st.warning("No operations in pipeline")
+        return
+
+    executor = get_pipeline_executor()
+
+    try:
+        # Execute pipeline
+        result = executor.execute_pipeline_realtime(
+            original_image=st.session_state.original_image,
+            operations=st.session_state.pipeline_operations,
+            force_refresh=False,
+        )
+
+        if result.error:
+            st.error(f"❌ {result.error}")
+        elif result.final_image:
+            # Update processed image
+            st.session_state.processed_image = result.final_image
+            st.session_state.last_execution_result = result
+
+            # Reset parameters changed flag
+            st.session_state.parameters_changed = False
+
+            # Show success toast
+            cache_info = (
+                f" ({result.cache_hits}/{result.total_steps} cached)"
+                if result.cache_hits > 0
+                else ""
+            )
+            st.toast(f"✅ Pipeline executed in {result.execution_time:.2f}s{cache_info}", icon="✅")
+
+    except Exception as e:
+        st.error(f"❌ Execution failed: {str(e)}")
+
+
+def render_sidebar_preview():
+    """Render a live preview of the processed image in the sidebar."""
+    from PIL import Image
+
+    # Check what to display
+    has_processed = st.session_state.get("processed_image") is not None
+
+    if not has_processed:
+        st.info("⏳ No processed result yet")
+        st.caption("Execute the pipeline to see results here")
+        return
+
+    # Get processed image
+    processed = st.session_state.processed_image
+
+    # Create thumbnail for sidebar display
+    max_width = 260  # Sidebar width constraint
+
+    def create_thumbnail(img, max_size=(max_width, max_width)):
+        """Create a thumbnail preserving aspect ratio."""
+        img_copy = img.copy()
+        img_copy.thumbnail(max_size, Image.Resampling.LANCZOS)
+        return img_copy
+
+    # Display processed image
+    st.image(create_thumbnail(processed), caption="Processed Result", use_container_width=True)
+    st.caption(f"📐 {processed.width}×{processed.height} | {processed.mode}")
+
+    # Execution time if available
+    if st.session_state.get("last_execution_result"):
+        result = st.session_state.last_execution_result
+        st.caption(f"⚡ {result.execution_time:.2f}s")
+        if result.cache_hits > 0:
+            st.caption(f"💾 {result.cache_hits}/{result.total_steps} cached")
+
+
 def render_sidebar():
-    """Render the sidebar with file upload and basic controls."""
+    """Render the sidebar with essential controls and live preview."""
 
     st.header("📁 Image Upload")
-
-    # Image upload
     render_image_upload()
 
-    # Pipeline summary
-    st.header("⚙️ Pipeline")
+    # Live Preview Section
+    st.header("👁️ Live Preview")
+    render_sidebar_preview()
+
+    # Pipeline status summary
+    st.header("📊 Status")
     summary = get_pipeline_summary()
 
     if summary["has_image"]:
@@ -47,24 +128,14 @@ def render_sidebar():
         st.info("📤 Upload an image to begin")
 
     if summary["operation_count"] > 0:
-        st.info(f"🔧 {summary['operation_count']} operation(s) in pipeline")
+        st.info(f"🔧 {summary['operation_count']} operation(s)")
+
+        if summary["has_results"]:
+            st.success("✨ Results ready")
+        elif summary["has_error"]:
+            st.error("❌ Pipeline error")
     else:
-        st.info("➕ Add operations to build pipeline")
-
-    if summary["has_results"]:
-        st.success("✨ Pipeline results available")
-
-    if summary["has_error"]:
-        st.error("❌ Pipeline error occurred")
-
-    # Operation browser with full functionality
-    from ui.components.operation_browser import render_operation_browser, render_pipeline_summary
-
-    render_operation_browser()
-
-    # Pipeline summary
-    st.header("🔗 Pipeline")
-    render_pipeline_summary()
+        st.info("➕ Ready to build pipeline")
 
 
 def render_main_content():
@@ -106,19 +177,77 @@ def render_main_content():
         """)
         return
 
-    # Advanced image display
-    render_advanced_image_display()
+    # Main content with tabs for better organization
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["🛠️ Pipeline Builder", "🖼️ Processing", "📤 Export & Share", "📊 Analytics"]
+    )
 
-    # Advanced comparison analysis (if both images available)
-    if st.session_state.get("original_image") and st.session_state.get("processed_image"):
-        with st.expander("🔍 Advanced Comparison Analysis", expanded=False):
+    with tab1:
+        # Pipeline builder - operations and configuration
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            from ui.components.operation_browser import render_operation_browser
+
+            render_operation_browser()
+
+        with col2:
+            from ui.components.operation_browser import render_pipeline_summary
+
+            st.header("🔗 Current Pipeline")
+
+            # Add real-time execution toggle
+            auto_preview = st.checkbox(
+                "⚡ Auto-Execute on Changes",
+                value=st.session_state.get("auto_preview", False),
+                help="Automatically execute pipeline when parameters change",
+            )
+            st.session_state.auto_preview = auto_preview
+
+            render_pipeline_summary()
+
+            # Quick pipeline actions
+            if st.session_state.get("pipeline_operations"):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    execute_button = st.button(
+                        "▶️ Execute Now",
+                        type="primary",
+                        use_container_width=True,
+                        key="pipeline_execute_now",
+                    )
+                with col_b:
+                    if st.button("🗑️ Clear All", use_container_width=True, key="pipeline_clear_all"):
+                        st.session_state.pipeline_operations = []
+                        st.rerun()
+
+                # Execute pipeline if button clicked or auto-preview is on with changes
+                if execute_button or (
+                    auto_preview and st.session_state.get("parameters_changed", False)
+                ):
+                    with st.spinner("🔄 Executing pipeline..."):
+                        execute_pipeline_inline()
+
+    with tab2:
+        # Advanced image display
+        render_advanced_image_display()
+
+        # Real-time pipeline execution section
+        if st.session_state.pipeline_operations:
+            render_pipeline_execution_controls()
+        else:
+            st.info("Add operations in the Pipeline Builder tab to begin processing")
+
+    with tab3:
+        # Export and sharing functionality
+        render_export_manager()
+
+    with tab4:
+        # Advanced comparison analysis (if both images available)
+        if st.session_state.get("original_image") and st.session_state.get("processed_image"):
             render_comparison_analysis()
-
-    # Real-time pipeline execution section
-    if st.session_state.pipeline_operations:
-        render_pipeline_execution_controls()
-    else:
-        st.info("Add operations to your pipeline to begin processing")
+        else:
+            st.info("Process an image to access comparison analytics")
 
 
 def render_pipeline_execution_controls():
@@ -128,42 +257,52 @@ def render_pipeline_execution_controls():
     # Get pipeline executor
     executor = get_pipeline_executor()
 
-    # Execution controls
-    col1, col2, col3, col4 = st.columns(4)
+    # First row - Main controls
+    col1, col2 = st.columns([1, 2])
 
     with col1:
         auto_execute = st.checkbox(
-            "Auto Execute",
+            "⚡ Auto Execute",
             value=st.session_state.get("auto_execute", True),
             help="Execute pipeline automatically when parameters change",
         )
         st.session_state.auto_execute = auto_execute
 
     with col2:
-        if st.button("▶️ Execute Now", type="primary"):
-            execute_pipeline_realtime(executor, force_refresh=True)
-
-    with col3:
+        # Partial execution selector
         execute_up_to = st.selectbox(
-            "Execute up to step",
+            "Execute up to:",
             options=list(range(1, len(st.session_state.pipeline_operations) + 1)),
             index=len(st.session_state.pipeline_operations) - 1,
             format_func=lambda i: f"Step {i}: {st.session_state.pipeline_operations[i - 1]['name']}",
         )
 
-    with col4:
-        if st.button("🗑️ Clear Cache"):
+    # Second row - Action buttons
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        execute_now = st.button(
+            "▶️ Execute Now", type="primary", use_container_width=True, key="realtime_execute_now"
+        )
+
+    with col2:
+        execute_partial = st.button(
+            "🎯 Execute to Step", use_container_width=True, key="realtime_execute_partial"
+        )
+
+    with col3:
+        if st.button("🗑️ Clear Cache", use_container_width=True, key="realtime_clear_cache"):
             executor.cache.clear()
-            st.success("Cache cleared!")
+            st.toast("✅ Cache cleared!", icon="🗑️")
             st.rerun()
 
-    # Auto-execute when enabled and parameters change
-    if (
-        auto_execute
-        and should_auto_execute()
-        or st.button("🎯 Execute to Step", key="execute_partial")
-    ):
+    # Execute based on button clicks or auto-execute
+    if execute_now:
+        execute_pipeline_realtime(executor, force_refresh=True)
+    elif execute_partial:
         execute_pipeline_realtime(executor, execute_up_to=execute_up_to)
+    elif auto_execute and should_auto_execute():
+        execute_pipeline_realtime(executor)
 
     # Show execution statistics
     render_execution_stats(executor)

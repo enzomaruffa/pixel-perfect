@@ -302,10 +302,7 @@ class Pipeline:
             PipelineError: If execution fails
         """
         # Set default output path if not provided
-        if output_path is None:
-            output_path = self.output_dir / "final.png"
-        else:
-            output_path = Path(output_path)
+        output_path = self.output_dir / "final.png" if output_path is None else Path(output_path)
 
         # Validate pipeline
         try:
@@ -372,7 +369,8 @@ class Pipeline:
 
                 progress.remove_task(task)
 
-        # Save final output
+        # Save final output (create directory if it doesn't exist)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         image.save(output_path)
         if output_path != self.output_dir / "final.png":
             # Also save in output_dir for consistency

@@ -174,8 +174,10 @@ def validate_expression_safe(expression: str) -> None:
         "log",
         "exp",
         "pow",
+        "int",
+        "float",
     }
-    allowed_vars = {"r", "g", "b", "a", "x", "y", "width", "height", "i"}
+    allowed_vars = {"r", "g", "b", "a", "x", "y", "width", "height", "i", "j"}
 
     # Check for unsafe characters
     expr_lower = expression.lower()

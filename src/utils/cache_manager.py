@@ -12,6 +12,7 @@ from PIL import Image
 from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
+
 # Import at module level to avoid circular imports
 # We'll import these functions when needed in methods
 
@@ -37,6 +38,7 @@ class CacheStats:
     def human_readable_size(self) -> str:
         """Get human-readable cache size."""
         from utils.cache import format_bytes
+
         return format_bytes(self.total_bytes)
 
     def to_dict(self) -> dict[str, Any]:
@@ -139,6 +141,7 @@ class CacheManager:
         # Check disk cache
         try:
             from utils.cache import load_cached_result
+
             result = load_cached_result(self.cache_dir, cache_key)
             if result is not None:
                 self._record_hit(operation.operation_name)
@@ -181,12 +184,14 @@ class CacheManager:
             # Check size limits before saving
             if self.policy.max_size_bytes is not None:
                 from utils.cache import get_cache_size
+
                 current_size = get_cache_size(self.cache_dir)["total_bytes"]
                 if current_size >= self.policy.max_size_bytes:
                     self._enforce_size_limit()
 
             # Save to disk
             from utils.cache import save_cached_result
+
             save_cached_result(self.cache_dir, cache_key, image, context)
             self._record_save(operation.operation_name)
 
@@ -223,6 +228,7 @@ class CacheManager:
 
         try:
             from utils.cache import cleanup_old_cache
+
             removed_count = cleanup_old_cache(self.cache_dir, age_limit)
 
             # Update statistics
@@ -256,14 +262,13 @@ class CacheManager:
         """
         try:
             from utils.cache import invalidate_cache_pattern
+
             removed_count = invalidate_cache_pattern(self.cache_dir, pattern)
 
             # Remove from memory cache too
             if self._enable_memory_cache:
                 keys_to_remove = [
-                    key
-                    for key in self._memory_cache.keys()
-                    if key.startswith(pattern.replace("*", ""))
+                    key for key in self._memory_cache if key.startswith(pattern.replace("*", ""))
                 ]
                 for key in keys_to_remove:
                     self._memory_cache.pop(key, None)
@@ -310,6 +315,7 @@ class CacheManager:
                     # Check if already cached
                     cache_key = operation.get_cache_key(image_hash)
                     from utils.cache import load_cached_result
+
                     if (
                         cache_key in self._memory_cache
                         or load_cached_result(self.cache_dir, cache_key) is not None
@@ -346,8 +352,8 @@ class CacheManager:
 
         # Overall statistics
         overall_stats = self._stats
-        from utils.cache import get_cache_size, verify_cache_integrity
-        size_info = get_cache_size(self.cache_dir)
+        from utils.cache import verify_cache_integrity
+
         integrity_info = verify_cache_integrity(self.cache_dir)
 
         # Generate report
@@ -456,6 +462,7 @@ class CacheManager:
     def _update_cache_stats(self) -> None:
         """Update cache size statistics."""
         from utils.cache import get_cache_size
+
         size_info = get_cache_size(self.cache_dir)
         self._stats.total_bytes = size_info["total_bytes"]
         self._stats.entry_count = size_info["entry_count"]
@@ -470,6 +477,7 @@ class CacheManager:
             return
 
         from utils.cache import get_cache_size
+
         current_size = get_cache_size(self.cache_dir)["total_bytes"]
 
         while current_size > self.policy.max_size_bytes:
@@ -573,7 +581,7 @@ class CacheManager:
 
         # Generate hash
         return hashlib.md5(img_data).hexdigest()
-    
+
     def _format_bytes_local(self, bytes_value: int) -> str:
         """Format bytes as human-readable string (local version to avoid circular imports)."""
         if bytes_value == 0:
@@ -647,7 +655,7 @@ class CacheManager:
 
     def __del__(self):
         """Save statistics when manager is destroyed."""
-        try:
+        import contextlib
+
+        with contextlib.suppress(Exception):
             self._save_stats()
-        except Exception:
-            pass

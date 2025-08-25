@@ -243,7 +243,10 @@ class ChannelSwap(BaseOperation):
                 ch == "a" for ch in self.mapping.values()
             )
 
-            if needs_alpha:
+            # Also preserve alpha if the original image has it and we're not explicitly removing it
+            has_original_alpha = image.mode in ("RGBA", "LA")
+
+            if needs_alpha or has_original_alpha:
                 working_image = _ensure_image_mode(image, "RGBA")
                 channels_list = ["r", "g", "b", "a"]
             else:

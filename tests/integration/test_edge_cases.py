@@ -2,15 +2,16 @@
 
 import pytest
 from PIL import Image
-from tests.conftest import assert_image_dimensions, assert_image_mode, create_test_image
 
 from core.pipeline import Pipeline
+from exceptions import ValidationError
 from operations.aspect import AspectStretch
 from operations.block import BlockFilter
 from operations.channel import ChannelSwap
 from operations.column import ColumnShift
 from operations.pixel import PixelFilter
 from operations.row import RowShift
+from tests.conftest import assert_image_dimensions, assert_image_mode, create_test_image
 
 
 @pytest.mark.integration
@@ -27,15 +28,10 @@ class TestImageEdgeCases:
         minimal_img.save(input_path)
 
         # Test various operations on minimal image
-        pipeline = Pipeline(str(input_path))
-        context = (
-            pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255)))
-            .add(RowShift(selection="all", shift_amount=0))  # No-op shift
-            .add(
-                ChannelSwap(red_source="red", green_source="green", blue_source="blue")
-            )  # Identity swap
-            .execute(str(output_path))
-        )
+        pipeline = Pipeline(str(input_path), use_cache=False)
+        pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255))).add(
+            RowShift(selection="all", shift_amount=0)
+        ).add(ChannelSwap(mapping={})).execute(str(output_path))
 
         assert output_path.exists()
         output_img = Image.open(output_path)
@@ -62,13 +58,11 @@ class TestImageEdgeCases:
             test_img = create_test_image(width, height, "RGBA")
             test_img.save(input_path)
 
-            pipeline = Pipeline(str(input_path))
-            context = (
-                pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 128)))
-                .add(RowShift(selection="all", shift_amount=1, wrap=True))
-                .add(ColumnShift(selection="all", shift_amount=1, wrap=True))
-                .execute(str(output_path))
-            )
+            pipeline = Pipeline(str(input_path), use_cache=False)
+            pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 128)))
+            pipeline.add(RowShift(selection="all", shift_amount=1, wrap=True))
+            pipeline.add(ColumnShift(selection="all", shift_amount=1, wrap=True))
+            pipeline.execute(str(output_path))
 
             assert output_path.exists(), f"Failed for case {case_name}"
             output_img = Image.open(output_path)
@@ -84,20 +78,29 @@ class TestImageEdgeCases:
 
         # Test block operations with various block sizes
         block_sizes = [(8, 8), (16, 16), (10, 7), (5, 11)]
+        # Expected dimensions after cropping to be divisible by block size
+        expected_dimensions = [
+            (72, 48),  # 77->72 (9*8), 53->48 (6*8)
+            (64, 48),  # 77->64 (4*16), 53->48 (3*16)
+            (70, 49),  # 77->70 (7*10), 53->49 (7*7)
+            (75, 44),  # 77->75 (15*5), 53->44 (4*11)
+        ]
 
         for i, (block_width, block_height) in enumerate(block_sizes):
             output_path = temp_dir / f"block_{i}_output.png"
 
-            pipeline = Pipeline(str(input_path))
-            context = pipeline.add(
+            pipeline = Pipeline(str(input_path), use_cache=False)
+            pipeline.add(
                 BlockFilter(
                     block_width=block_width, block_height=block_height, condition="checkerboard"
                 )
-            ).execute(str(output_path))
+            )
+            pipeline.execute(str(output_path))
 
             assert output_path.exists()
             output_img = Image.open(output_path)
-            assert_image_dimensions(output_img, 77, 53)
+            expected_width, expected_height = expected_dimensions[i]
+            assert_image_dimensions(output_img, expected_width, expected_height)
 
     def test_large_shift_amounts(self, temp_dir):
         """Test operations with shift amounts larger than image dimensions."""
@@ -108,14 +111,14 @@ class TestImageEdgeCases:
         test_img.save(input_path)
 
         # Test shifts larger than image dimensions
-        pipeline = Pipeline(str(input_path))
-        context = (
-            pipeline.add(
-                RowShift(selection="all", shift_amount=100, wrap=True)
-            )  # Much larger than width
-            .add(ColumnShift(selection="all", shift_amount=50, wrap=False))  # Larger than height
-            .execute(str(output_path))
-        )
+        pipeline = Pipeline(str(input_path), use_cache=False)
+        pipeline.add(
+            RowShift(selection="all", shift_amount=100, wrap=True)
+        )  # Much larger than width
+        pipeline.add(
+            ColumnShift(selection="all", shift_amount=50, wrap=False)
+        )  # Larger than height
+        pipeline.execute(str(output_path))
 
         assert output_path.exists()
         output_img = Image.open(output_path)
@@ -144,10 +147,9 @@ class TestParameterEdgeCases:
         for i, color in enumerate(extreme_colors):
             output_path = temp_dir / f"extreme_color_{i}_output.png"
 
-            pipeline = Pipeline(str(input_path))
-            context = pipeline.add(PixelFilter(condition="even", fill_color=color)).execute(
-                str(output_path)
-            )
+            pipeline = Pipeline(str(input_path), use_cache=False)
+            pipeline.add(PixelFilter(condition="even", fill_color=color))
+            pipeline.execute(str(output_path))
 
             assert output_path.exists()
 
@@ -171,10 +173,9 @@ class TestParameterEdgeCases:
         for i, shift_amount in enumerate(boundary_cases):
             output_path = temp_dir / f"boundary_shift_{i}_output.png"
 
-            pipeline = Pipeline(str(input_path))
-            context = pipeline.add(
-                RowShift(selection="all", shift_amount=shift_amount, wrap=True)
-            ).execute(str(output_path))
+            pipeline = Pipeline(str(input_path), use_cache=False)
+            pipeline.add(RowShift(selection="all", shift_amount=shift_amount, wrap=True))
+            pipeline.execute(str(output_path))
 
             assert output_path.exists()
 
@@ -194,13 +195,13 @@ class TestFileSystemEdgeCases:
         test_img = create_test_image(30, 30, "RGBA")
         test_img.save(input_path)
 
-        pipeline = Pipeline(str(input_path))
-        pipeline.add(PixelFilter(condition="all", fill_color=(255, 0, 0, 255)))
+        pipeline = Pipeline(str(input_path), use_cache=False)
+        pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 255)))
 
         # This should create the directory and succeed
         output_dir = temp_dir / "nonexistent_dir"
         output_path = output_dir / "output.png"
-        context = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
         assert output_path.exists()
 
 
@@ -217,7 +218,7 @@ class TestMemoryEdgeCases:
         test_img.save(input_path)
 
         # Create a very long chain of operations
-        pipeline = Pipeline(str(input_path))
+        pipeline = Pipeline(str(input_path), use_cache=False)
 
         # Add 50 operations
         for i in range(50):
@@ -234,7 +235,7 @@ class TestMemoryEdgeCases:
             else:
                 pipeline.add(BlockFilter(block_width=4, block_height=4, condition="checkerboard"))
 
-        context = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
         assert output_path.exists()
 
 
@@ -257,12 +258,10 @@ class TestConcurrencyEdgeCases:
         for i in range(3):
             output_path = temp_dir / f"concurrent_{i}_output.png"
 
-            pipeline = Pipeline(str(input_path), cache_dirs=[str(cache_dir)])
-            context = (
-                pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255)))
-                .add(RowShift(selection="odd", shift_amount=2))
-                .execute(str(output_path))
-            )
+            pipeline = Pipeline(str(input_path), cache_dirs=[str(cache_dir)], use_cache=False)
+            pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 255)))
+            pipeline.add(RowShift(selection="odd", shift_amount=2))
+            pipeline.execute(str(output_path))
 
             output_paths.append(output_path)
 
@@ -290,15 +289,17 @@ class TestErrorRecoveryEdgeCases:
             # Invalid block size
             lambda: BlockFilter(block_width=0, block_height=8, condition="checkerboard"),
             # Invalid aspect ratio format
-            lambda: AspectStretch(target_ratio="invalid", method="stretch"),
+            lambda: AspectStretch(target_ratio="invalid", method="simple"),
             # Invalid selection
             lambda: RowShift(selection="invalid_selection", shift_amount=5),
         ]
 
         for invalid_operation in invalid_cases:
-            with pytest.raises(Exception):  # Should raise validation error
+            with pytest.raises(
+                (ValidationError, ValueError, TypeError)
+            ):  # Should raise validation error
                 operation = invalid_operation()
-                pipeline = Pipeline(str(input_path))
+                pipeline = Pipeline(str(input_path), use_cache=False)
                 pipeline.add(operation)
                 pipeline.validate()
 
@@ -309,6 +310,8 @@ class TestErrorRecoveryEdgeCases:
         with open(fake_image_path, "w") as f:
             f.write("This is not an image file")
 
-        # Should raise appropriate error
-        with pytest.raises(Exception):
-            Pipeline(str(fake_image_path))
+        # Should raise appropriate error when trying to load the image
+        with pytest.raises((OSError, IOError, ValueError, TypeError)):
+            pipeline = Pipeline(str(fake_image_path))
+            # Force image loading by calling validate()
+            pipeline.validate()

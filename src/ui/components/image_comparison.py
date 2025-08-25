@@ -180,7 +180,7 @@ def render_difference_analysis(original: Image.Image, processed: Image.Image):
         st.image(
             diff_display,
             caption="Difference Image (white = no change, colored = changed)",
-            use_column_width=True,
+            use_container_width=True,
         )
 
         # Calculate difference statistics

@@ -4,7 +4,6 @@ import itertools
 
 import pytest
 from PIL import Image
-from tests.conftest import assert_image_mode, create_test_image
 
 from core.pipeline import Pipeline
 from operations.aspect import AspectCrop, AspectPad, AspectStretch
@@ -15,6 +14,7 @@ from operations.geometric import GridWarp, PerspectiveStretch, RadialStretch
 from operations.pattern import Dither, Mosaic
 from operations.pixel import PixelFilter
 from operations.row import RowShift, RowStretch
+from tests.conftest import assert_image_mode, create_test_image
 
 
 @pytest.mark.integration
@@ -34,7 +34,7 @@ class TestOperationCompatibility:
         output_path = temp_dir / "filter_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
+        _ = (
             pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 128)))
             .add(BlockFilter(block_width=4, block_height=4, condition="checkerboard"))
             .add(PixelFilter(condition="prime", fill_color=(0, 255, 0, 128)))
@@ -50,7 +50,7 @@ class TestOperationCompatibility:
         output_path = temp_dir / "geometric_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
+        _ = (
             pipeline.add(RowShift(selection="odd", shift_amount=2, wrap=True))
             .add(ColumnShift(selection="even", shift_amount=3, wrap=False))
             .add(RowStretch(rows=[0, 2, 4], factor=1.5))
@@ -67,10 +67,10 @@ class TestOperationCompatibility:
         output_path = temp_dir / "channel_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
-            pipeline.add(ChannelSwap(red_source="green", green_source="blue", blue_source="red"))
-            .add(ChannelIsolate(channels=["red"], mode="enhance"))
-            .add(AlphaGenerator(method="saturation", threshold=0.3))
+        _ = (
+            pipeline.add(ChannelSwap(mapping={"r": "g", "g": "b", "b": "r"}))
+            .add(ChannelIsolate(keep_channels=["r"]))
+            .add(AlphaGenerator(source="saturation", threshold=77))
             .execute(str(output_path))
         )
 
@@ -83,10 +83,10 @@ class TestOperationCompatibility:
         output_path = temp_dir / "aspect_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
+        _ = (
             pipeline.add(AspectCrop(target_ratio="1:1", crop_mode="center"))
             .add(AspectPad(target_ratio="16:9", mode="blur", blur_radius=3))
-            .add(AspectStretch(target_ratio="4:3", method="stretch"))
+            .add(AspectStretch(target_ratio="4:3", method="simple"))
             .execute(str(output_path))
         )
 
@@ -103,7 +103,7 @@ class TestOperationCompatibility:
         output_path = temp_dir / "spatial_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
+        _ = (
             pipeline.add(GridWarp(axis="horizontal", frequency=1.0, amplitude=3.0))
             .add(PerspectiveStretch(top_factor=0.9, bottom_factor=1.1))
             .add(RadialStretch(factor=1.2, center="auto", falloff="linear"))
@@ -119,7 +119,7 @@ class TestOperationCompatibility:
         output_path = temp_dir / "artistic_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
+        _ = (
             pipeline.add(Mosaic(tile_size=(8, 8), gap_size=1, mode="average"))
             .add(Dither(method="floyd_steinberg", levels=6))
             .add(PixelFilter(condition="prime", fill_color=(255, 255, 0, 64)))
@@ -135,12 +135,12 @@ class TestOperationCompatibility:
         output_path = temp_dir / "mixed_combo_output.png"
 
         pipeline = Pipeline(str(test_image))
-        context = (
+        _ = (
             pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 128)))  # Filter
             .add(RowShift(selection="odd", shift_amount=2))  # Geometric
             .add(ChannelSwap(red_source="blue", green_source="red", blue_source="green"))  # Channel
             .add(Mosaic(tile_size=(4, 4), gap_size=0, mode="dominant"))  # Artistic
-            .add(AspectStretch(target_ratio="1:1", method="stretch"))  # Aspect
+            .add(AspectStretch(target_ratio="1:1", method="simple"))  # Aspect
             .execute(str(output_path))
         )
 
@@ -167,7 +167,7 @@ class TestOperationParameterCompatibility:
             output_path = temp_dir / f"filter_param_{i}_output.png"
 
             pipeline = Pipeline(str(input_path))
-            result = pipeline.add(PixelFilter(condition=condition, fill_color=color)).execute(
+            _ = pipeline.add(PixelFilter(condition=condition, fill_color=color)).execute(
                 str(output_path)
             )
 
@@ -186,22 +186,20 @@ class TestOperationParameterCompatibility:
         shift_amounts = [1, 3, 5, 10]
         wrap_options = [True, False]
 
-        test_count = 0
-        for selection, shift_amount, wrap in itertools.product(
+        for test_count, (selection, shift_amount, wrap) in enumerate(itertools.product(
             selections, shift_amounts, wrap_options
-        ):
+        )):
             if test_count >= 6:  # Limit test combinations for efficiency
                 break
 
             output_path = temp_dir / f"shift_param_{test_count}_output.png"
 
             pipeline = Pipeline(str(input_path))
-            context = pipeline.add(
+            _ = pipeline.add(
                 RowShift(selection=selection, shift_amount=shift_amount, wrap=wrap)
             ).execute(str(output_path))
 
             assert output_path.exists()
-            test_count += 1
 
     def test_block_size_compatibility(self, temp_dir):
         """Test block operations with different block sizes."""
@@ -216,7 +214,7 @@ class TestOperationParameterCompatibility:
             output_path = temp_dir / f"block_size_{i}_output.png"
 
             pipeline = Pipeline(str(input_path))
-            context = pipeline.add(
+            _ = pipeline.add(
                 BlockFilter(
                     block_width=block_width, block_height=block_height, condition="checkerboard"
                 )
@@ -239,8 +237,8 @@ class TestOperationParameterCompatibility:
             output_path = temp_dir / f"aspect_ratio_{i}_output.png"
 
             pipeline = Pipeline(str(input_path))
-            context = pipeline.add(
-                AspectStretch(target_ratio=target_ratio, method="stretch")
+            _ = pipeline.add(
+                AspectStretch(target_ratio=target_ratio, method="simple")
             ).execute(str(output_path))
 
             assert output_path.exists()
@@ -275,7 +273,7 @@ class TestOperationMemoryConsistency:
                 )
 
         output_path = temp_dir / "memory_chain_output.png"
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
 
         assert output_path.exists()
         output_img = Image.open(output_path)
@@ -336,7 +334,7 @@ class TestOperationStressTests:
                 pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 32)))
 
         output_path = temp_dir / "stress_small_output.png"
-        result = pipeline.execute(str(output_path))
+        pipeline.execute(str(output_path))
 
         assert output_path.exists()
         output_img = Image.open(output_path)
@@ -349,7 +347,7 @@ class TestOperationStressTests:
         test_img.save(input_path)
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        _ = (
             pipeline
             # Layer 1: Basic filtering
             .add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 128)))
@@ -364,11 +362,12 @@ class TestOperationStressTests:
             .add(Mosaic(tile_size=(4, 4), gap_size=1, mode="average"))
             .add(Dither(method="floyd_steinberg", levels=4))
             # Layer 5: Final adjustments
-            .add(AspectStretch(target_ratio="1:1", method="stretch"))
-            .add(AlphaGenerator(method="saturation", threshold=0.2))
+            .add(AspectStretch(target_ratio="1:1", method="simple"))
+            .add(AlphaGenerator(source="saturation", threshold=128))
             .execute(str(temp_dir / "nested_output.png"))
         )
 
+        output_path = temp_dir / "nested_output.png"
         assert output_path.exists()
         output_img = Image.open(output_path)
         assert_image_mode(output_img, "RGBA")

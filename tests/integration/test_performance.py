@@ -7,7 +7,6 @@ from pathlib import Path
 import psutil
 import pytest
 from PIL import Image
-from tests.conftest import create_test_image
 
 from core.pipeline import Pipeline
 from operations.block import BlockFilter
@@ -16,6 +15,7 @@ from operations.column import ColumnShift
 from operations.pattern import Dither, Mosaic
 from operations.pixel import PixelFilter
 from operations.row import RowShift
+from tests.conftest import create_test_image
 
 
 @pytest.mark.performance
@@ -58,7 +58,7 @@ class TestOperationPerformance:
 
         # Execute pipeline
         output_path = f"/tmp/perf_test_{operation_name}.png"
-        result = pipeline.execute(output_path)
+        pipeline.execute(output_path)
 
         # Measure after execution
         end_time = time.perf_counter()
@@ -178,7 +178,7 @@ class TestPipelinePerformance:
         start_memory = psutil.Process().memory_info().rss / 1024 / 1024
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(PixelFilter(condition="prime", fill_color=(255, 0, 0, 128)))
             .add(BlockFilter(block_width=8, block_height=8, condition="checkerboard"))
             .add(RowShift(selection="odd", shift_amount=3, wrap=True))
@@ -368,7 +368,7 @@ class TestScalabilityLimits:
         start_memory = psutil.Process().memory_info().rss / 1024 / 1024
 
         pipeline = Pipeline(str(input_path))
-        context = (
+        (
             pipeline.add(PixelFilter(condition="even", fill_color=(255, 0, 0, 128)))
             .add(RowShift(selection="odd", shift_amount=5))
             .execute(str(temp_dir / "large_output.png"))
@@ -412,7 +412,7 @@ class TestScalabilityLimits:
                 else:
                     pipeline.add(ColumnShift(selection="even", shift_amount=1, wrap=True))
 
-            result = pipeline.execute(str(temp_dir / f"many_ops_{op_count}.png"))
+            pipeline.execute(str(temp_dir / f"many_ops_{op_count}.png"))
             execution_time = time.perf_counter() - start_time
             execution_times.append(execution_time)
 

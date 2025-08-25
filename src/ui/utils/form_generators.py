@@ -10,6 +10,10 @@ from pydantic.fields import FieldInfo
 
 def extract_pydantic_model_from_operation(operation_class) -> type[BaseModel] | None:
     """Extract the Pydantic config model from an operation class."""
+    # First check if the operation class itself is already a BaseModel
+    if issubclass(operation_class, BaseModel):
+        return operation_class
+
     # Look for Config classes in the operation module
     module = inspect.getmodule(operation_class)
     if not module:
@@ -108,6 +112,32 @@ def get_field_type_info(field_info: FieldInfo) -> dict[str, Any]:
     return info
 
 
+def should_show_field(field_name: str, current_values: dict[str, Any], config_model) -> bool:
+    """Determine if a field should be shown based on conditional logic."""
+    # Define field visibility rules based on different control fields
+    field_rules = {
+        # Row/Column operations - based on 'selection'
+        "n": {"control_field": "selection", "values": ["every_n"]},
+        "indices": {"control_field": "selection", "values": ["custom"]},
+        "gradient_start": {"control_field": "selection", "values": ["gradient"]},
+        "formula": {"control_field": "selection", "values": ["formula"]},
+        # Pixel operations - based on 'condition'
+        "custom_expression": {"control_field": "condition", "values": ["custom"]},
+    }
+
+    # Check if this field has conditional display rules
+    if field_name in field_rules:
+        rule = field_rules[field_name]
+        control_field = rule["control_field"]
+        required_values = rule["values"]
+
+        current_control_value = current_values.get(control_field)
+        return current_control_value in required_values
+
+    # Always show fields that don't have conditional rules
+    return True
+
+
 def generate_parameter_form(
     operation_class, current_params: dict[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -124,13 +154,43 @@ def generate_parameter_form(
 
     form_values = {}
 
-    # Generate widgets for each field
+    # Create a unique prefix for this operation instance to avoid key conflicts
+    key_prefix = f"{operation_class.__name__}_{id(current_params)}"
+
+    # Handle control fields first (selection, condition) to enable conditional display
+    control_fields = ["selection", "condition"]
+    for control_field in control_fields:
+        if control_field in config_model.model_fields:
+            field_info = config_model.model_fields[control_field]
+            current_value = current_params.get(control_field, field_info.default)
+
+            widget_value = create_widget_for_field(
+                field_name=control_field,
+                field_info=field_info,
+                current_value=current_value,
+                key_prefix=key_prefix,
+            )
+            form_values[control_field] = widget_value
+
+    # Generate widgets for remaining fields
     for field_name, field_info in config_model.model_fields.items():
+        if field_name in control_fields:  # Already handled above
+            continue
+
         current_value = current_params.get(field_name, field_info.default)
+
+        # Check if this field should be shown based on conditional logic
+        if not should_show_field(field_name, form_values, config_model):
+            # Set default value for hidden fields
+            form_values[field_name] = field_info.default
+            continue
 
         # Create widget based on field type
         widget_value = create_widget_for_field(
-            field_name=field_name, field_info=field_info, current_value=current_value
+            field_name=field_name,
+            field_info=field_info,
+            current_value=current_value,
+            key_prefix=key_prefix,
         )
 
         form_values[field_name] = widget_value
@@ -139,7 +199,7 @@ def generate_parameter_form(
 
 
 def create_widget_for_field(
-    field_name: str, field_info: FieldInfo, current_value: Any = None
+    field_name: str, field_info: FieldInfo, current_value: Any = None, key_prefix: str = ""
 ) -> Any:
     """Create appropriate Streamlit widget based on field type."""
     type_info = get_field_type_info(field_info)
@@ -159,6 +219,16 @@ def create_widget_for_field(
 
     # Handle Literal types (enums)
     if type_info.get("is_literal", False):
+        # For control fields (selection/condition), add on_change callback for immediate reactivity
+        on_change = None
+        if field_name in ["selection", "condition"]:
+
+            def on_control_change():
+                # Force a soft rerun to update conditional fields
+                st.session_state[f"{key_prefix}_control_changed"] = True
+
+            on_change = on_control_change
+
         return st.selectbox(
             label,
             options=list(type_info["literal_values"]),
@@ -166,13 +236,14 @@ def create_widget_for_field(
             if current_value in type_info["literal_values"]
             else 0,
             help=help_text,
-            key=f"param_{field_name}",
+            key=f"{key_prefix}_param_{field_name}",
+            on_change=on_change,
         )
 
     # Handle basic types
     elif base_type is bool:
         return st.checkbox(
-            label, value=bool(current_value), help=help_text, key=f"param_{field_name}"
+            label, value=bool(current_value), help=help_text, key=f"{key_prefix}_param_{field_name}"
         )
 
     elif base_type is int:
@@ -181,7 +252,7 @@ def create_widget_for_field(
             value=int(current_value) if current_value is not None else 0,
             step=1,
             help=help_text,
-            key=f"param_{field_name}",
+            key=f"{key_prefix}_param_{field_name}",
         )
 
     elif base_type is float:
@@ -194,7 +265,7 @@ def create_widget_for_field(
                 value=float(current_value) if current_value is not None else 0.1,
                 step=0.01,
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
         elif "amplitude" in field_name.lower():
             return st.slider(
@@ -204,7 +275,7 @@ def create_widget_for_field(
                 value=float(current_value) if current_value is not None else 20.0,
                 step=1.0,
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
         elif "strength" in field_name.lower():
             return st.slider(
@@ -214,7 +285,7 @@ def create_widget_for_field(
                 value=float(current_value) if current_value is not None else 1.0,
                 step=0.1,
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
         elif "threshold" in field_name.lower():
             return st.slider(
@@ -224,7 +295,7 @@ def create_widget_for_field(
                 value=float(current_value) if current_value is not None else 128.0,
                 step=1.0,
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
         else:
             return st.number_input(
@@ -232,7 +303,7 @@ def create_widget_for_field(
                 value=float(current_value) if current_value is not None else 1.0,
                 step=0.1,
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
 
     elif base_type is str:
@@ -240,7 +311,7 @@ def create_widget_for_field(
             label,
             value=str(current_value) if current_value is not None else "",
             help=help_text,
-            key=f"param_{field_name}",
+            key=f"{key_prefix}_param_{field_name}",
         )
 
     # Handle tuple types (likely colors or coordinates)
@@ -248,17 +319,17 @@ def create_widget_for_field(
         args = get_args(base_type)
         if len(args) == 4 and all(arg is int for arg in args):
             # RGBA color tuple
-            return create_color_widget(label, current_value, help_text, field_name)
+            return create_color_widget(label, current_value, help_text, field_name, key_prefix)
         elif len(args) == 2 and all(arg in (int, float) for arg in args):
             # Coordinate tuple or size tuple
-            return create_coordinate_widget(label, current_value, help_text, field_name)
+            return create_coordinate_widget(label, current_value, help_text, field_name, key_prefix)
         else:
             # Generic tuple - fall back to text input
             return st.text_input(
                 label,
                 value=str(current_value) if current_value is not None else "()",
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
 
     # Handle list types
@@ -271,7 +342,7 @@ def create_widget_for_field(
                 options=["r", "g", "b", "a"],
                 default=current_value if isinstance(current_value, list) else ["r", "g", "b"],
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
         else:
             # Generic list - text input for now
@@ -279,12 +350,12 @@ def create_widget_for_field(
                 label,
                 value=str(current_value) if current_value is not None else "[]",
                 help=help_text,
-                key=f"param_{field_name}",
+                key=f"{key_prefix}_param_{field_name}",
             )
 
     # Handle dict types (like channel mappings)
     elif base_type is dict:
-        return create_dict_widget(label, current_value, help_text, field_name)
+        return create_dict_widget(label, current_value, help_text, field_name, key_prefix)
 
     # Fallback to text input
     else:
@@ -292,12 +363,12 @@ def create_widget_for_field(
             label,
             value=str(current_value) if current_value is not None else "",
             help=help_text,
-            key=f"param_{field_name}",
+            key=f"{key_prefix}_param_{field_name}",
         )
 
 
 def create_color_widget(
-    label: str, current_value: Any, help_text: str | None, field_name: str
+    label: str, current_value: Any, help_text: str | None, field_name: str, key_prefix: str = ""
 ) -> tuple:
     """Create RGBA color picker widget."""
     if not isinstance(current_value, tuple | list) or len(current_value) != 4:
@@ -309,13 +380,13 @@ def create_color_widget(
 
     cols = st.columns(4)
     with cols[0]:
-        r = st.slider("Red", 0, 255, int(current_value[0]), key=f"{field_name}_r")
+        r = st.slider("Red", 0, 255, int(current_value[0]), key=f"{key_prefix}_{field_name}_r")
     with cols[1]:
-        g = st.slider("Green", 0, 255, int(current_value[1]), key=f"{field_name}_g")
+        g = st.slider("Green", 0, 255, int(current_value[1]), key=f"{key_prefix}_{field_name}_g")
     with cols[2]:
-        b = st.slider("Blue", 0, 255, int(current_value[2]), key=f"{field_name}_b")
+        b = st.slider("Blue", 0, 255, int(current_value[2]), key=f"{key_prefix}_{field_name}_b")
     with cols[3]:
-        a = st.slider("Alpha", 0, 255, int(current_value[3]), key=f"{field_name}_a")
+        a = st.slider("Alpha", 0, 255, int(current_value[3]), key=f"{key_prefix}_{field_name}_a")
 
     # Show color preview
     color_preview = f"rgba({r}, {g}, {b}, {a / 255:.2f})"
@@ -336,7 +407,7 @@ def create_color_widget(
 
 
 def create_coordinate_widget(
-    label: str, current_value: Any, help_text: str | None, field_name: str
+    label: str, current_value: Any, help_text: str | None, field_name: str, key_prefix: str = ""
 ) -> tuple:
     """Create coordinate/size input widget."""
     if not isinstance(current_value, tuple | list) or len(current_value) != 2:
@@ -348,15 +419,19 @@ def create_coordinate_widget(
 
     cols = st.columns(2)
     with cols[0]:
-        x = st.number_input("X/Width", value=int(current_value[0]), key=f"{field_name}_x")
+        x = st.number_input(
+            "X/Width", value=int(current_value[0]), key=f"{key_prefix}_{field_name}_x"
+        )
     with cols[1]:
-        y = st.number_input("Y/Height", value=int(current_value[1]), key=f"{field_name}_y")
+        y = st.number_input(
+            "Y/Height", value=int(current_value[1]), key=f"{key_prefix}_{field_name}_y"
+        )
 
     return (x, y)
 
 
 def create_dict_widget(
-    label: str, current_value: Any, help_text: str | None, field_name: str
+    label: str, current_value: Any, help_text: str | None, field_name: str, key_prefix: str = ""
 ) -> dict:
     """Create dictionary input widget (for channel mappings, etc)."""
     if not isinstance(current_value, dict):
@@ -378,7 +453,7 @@ def create_dict_widget(
                     f"{channel.upper()} →",
                     options=channels,
                     index=channels.index(current_value.get(channel, channel)),
-                    key=f"{field_name}_{channel}",
+                    key=f"{key_prefix}_{field_name}_{channel}",
                 )
         return result
     else:
@@ -390,7 +465,9 @@ def create_dict_widget(
         except Exception:
             json_str = "{}"
 
-        text_value = st.text_area(label, value=json_str, help=help_text, key=f"param_{field_name}")
+        text_value = st.text_area(
+            label, value=json_str, help=help_text, key=f"{key_prefix}_param_{field_name}"
+        )
 
         try:
             return json.loads(text_value)

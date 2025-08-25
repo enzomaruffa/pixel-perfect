@@ -73,7 +73,7 @@ def render_single_image(image: Image.Image, title: str):
 
     # Display optimized image
     display_image = optimize_image_for_display(image, max_width=800, max_height=600)
-    st.image(display_image, use_column_width=True)
+    st.image(display_image, use_container_width=True)
 
     # Image information
     with st.expander("Image Information"):
@@ -105,14 +105,14 @@ def render_side_by_side_comparison():
         display_original = optimize_image_for_display(
             st.session_state.original_image, max_width=400, max_height=400
         )
-        st.image(display_original, use_column_width=True)
+        st.image(display_original, use_container_width=True)
 
     with col2:
         st.write("**Processed**")
         display_processed = optimize_image_for_display(
             st.session_state.processed_image, max_width=400, max_height=400
         )
-        st.image(display_processed, use_column_width=True)
+        st.image(display_processed, use_container_width=True)
 
     # Comparison metrics
     render_image_comparison_metrics()

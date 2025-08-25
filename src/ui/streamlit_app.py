@@ -33,22 +33,22 @@ def main():
         },
     )
 
-    # Custom CSS for wider sidebar
+    # Custom CSS for optimized layout
     st.markdown(
         """
     <style>
-        /* Make sidebar wider for better usability */
-        .css-1d391kg {width: 400px !important;}
-        .css-1cyp50f {min-width: 400px !important; max-width: 400px !important;}
+        /* Compact sidebar for essential controls */
+        .css-1d391kg {width: 280px !important;}
+        .css-1cyp50f {min-width: 280px !important; max-width: 280px !important;}
 
         /* Adjust main content margin */
-        .main .block-container {margin-left: 420px;}
+        .main .block-container {margin-left: 300px;}
 
         /* Responsive adjustments */
         @media (max-width: 1024px) {
-            .css-1d391kg {width: 350px !important;}
-            .css-1cyp50f {min-width: 350px !important; max-width: 350px !important;}
-            .main .block-container {margin-left: 370px;}
+            .css-1d391kg {width: 250px !important;}
+            .css-1cyp50f {min-width: 250px !important; max-width: 250px !important;}
+            .main .block-container {margin-left: 270px;}
         }
     </style>
     """,
