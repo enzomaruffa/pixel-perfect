@@ -159,7 +159,7 @@ def validate_expression_safe(expression: str) -> None:
         raise ValidationError("Expression cannot be empty")
 
     # List of allowed characters and functions
-    allowed_chars = set("0123456789+-*/().%abcdefghijklmnopqrstuvwxyz_=!<>")
+    allowed_chars = set("0123456789+-*/().%abcdefghijklmnopqrstuvwxyz_=!<>^&|")
     allowed_functions = {
         "sin",
         "cos",
