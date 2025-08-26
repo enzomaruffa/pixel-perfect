@@ -323,8 +323,16 @@ class BlockShift(BaseOperation):
 
     block_width: int = Field(8, gt=0, description="Width of blocks")
     block_height: int = Field(8, gt=0, description="Height of blocks")
-    shift_map: dict[int, int] = Field(..., description="Mapping source index → destination index")
-    swap_mode: Literal["move", "swap"] = "move"
+    shift_pattern: Literal[
+        "rotate_right",
+        "rotate_left",
+        "flip_horizontal",
+        "flip_vertical",
+        "swap_diagonal",
+        "scramble",
+    ] = Field("rotate_right", description="Pattern for rearranging blocks")
+    shift_amount: int = Field(1, ge=0, description="Amount to shift (for rotate patterns)")
+    seed: int | None = Field(None, description="Random seed for scramble pattern")
     padding_mode: Literal["crop", "extend", "fill"] = "crop"
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
@@ -334,21 +342,87 @@ class BlockShift(BaseOperation):
                 f"Block size ({self.block_width}x{self.block_height}) cannot exceed image size ({context.width}x{context.height})"
             )
 
-        # Validate shift_map indices (we'll check against actual grid size in apply)
-        if not self.shift_map:
-            raise ValidationError("shift_map cannot be empty")
+        # Validate shift parameters
+        if self.shift_pattern in ["rotate_right", "rotate_left"] and self.shift_amount < 0:
+            raise ValidationError("shift_amount must be non-negative for rotation patterns")
 
         return context.copy_with_updates()
 
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
-        config_str = f"{self.block_width}_{self.block_height}_{sorted(self.shift_map.items())}"
-        config_str += f"_{self.swap_mode}_{self.padding_mode}"
+        config_str = f"{self.block_width}_{self.block_height}_{self.shift_pattern}"
+        config_str += f"_{self.shift_amount}_{self.seed}_{self.padding_mode}"
         return f"blockshift_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
         """Estimate memory usage in bytes."""
         return context.memory_estimate * 3  # Input + output + temp blocks
+
+    def _generate_shift_map(self, grid_cols: int, grid_rows: int) -> dict[int, int]:
+        """Generate shift mapping based on the selected pattern."""
+        total_blocks = grid_cols * grid_rows
+        shift_map = {}
+
+        if self.shift_pattern == "rotate_right":
+            # Shift all blocks to the right by shift_amount
+            for i in range(total_blocks):
+                row = i // grid_cols
+                col = i % grid_cols
+                new_col = (col + self.shift_amount) % grid_cols
+                new_idx = row * grid_cols + new_col
+                shift_map[i] = new_idx
+
+        elif self.shift_pattern == "rotate_left":
+            # Shift all blocks to the left by shift_amount
+            for i in range(total_blocks):
+                row = i // grid_cols
+                col = i % grid_cols
+                new_col = (col - self.shift_amount) % grid_cols
+                new_idx = row * grid_cols + new_col
+                shift_map[i] = new_idx
+
+        elif self.shift_pattern == "flip_horizontal":
+            # Flip horizontally
+            for i in range(total_blocks):
+                row = i // grid_cols
+                col = i % grid_cols
+                new_col = grid_cols - 1 - col
+                new_idx = row * grid_cols + new_col
+                shift_map[i] = new_idx
+
+        elif self.shift_pattern == "flip_vertical":
+            # Flip vertically
+            for i in range(total_blocks):
+                row = i // grid_cols
+                col = i % grid_cols
+                new_row = grid_rows - 1 - row
+                new_idx = new_row * grid_cols + col
+                shift_map[i] = new_idx
+
+        elif self.shift_pattern == "swap_diagonal":
+            # Swap along diagonal (transpose)
+            if grid_cols == grid_rows:  # Only works for square grids
+                for i in range(total_blocks):
+                    row = i // grid_cols
+                    col = i % grid_cols
+                    new_idx = col * grid_cols + row
+                    shift_map[i] = new_idx
+            else:
+                # For non-square, just return identity
+                shift_map = {i: i for i in range(total_blocks)}
+
+        elif self.shift_pattern == "scramble":
+            # Random scramble
+            import random
+
+            if self.seed is not None:
+                random.seed(self.seed)
+            indices = list(range(total_blocks))
+            shuffled = indices.copy()
+            random.shuffle(shuffled)
+            shift_map = {src: dst for src, dst in zip(indices, shuffled, strict=False)}
+
+        return shift_map
 
     def apply(self, image: Image.Image, context: ImageContext) -> tuple[Image.Image, ImageContext]:
         """Apply block shifting to image."""
@@ -370,59 +444,25 @@ class BlockShift(BaseOperation):
             grid_cols, grid_rows = grid_dims
             total_blocks = grid_cols * grid_rows
 
-            # Validate shift_map indices
-            for src, dst in self.shift_map.items():
-                if src < 0 or src >= total_blocks:
-                    raise ValidationError(
-                        f"Source block index {src} out of range [0, {total_blocks})"
-                    )
-                if dst < 0 or dst >= total_blocks:
-                    raise ValidationError(
-                        f"Destination block index {dst} out of range [0, {total_blocks})"
-                    )
+            # Generate shift map based on pattern
+            shift_map = self._generate_shift_map(grid_cols, grid_rows)
 
             result_pixels = pixels.copy()
 
-            if self.swap_mode == "move":
-                # Extract all blocks that will be moved
-                moved_blocks = {}
-                for src_idx, dst_idx in self.shift_map.items():
-                    bounds = _get_block_bounds(
-                        src_idx, grid_dims, (self.block_width, self.block_height)
-                    )
-                    moved_blocks[dst_idx] = _extract_block(pixels, bounds)
+            # Extract all blocks that will be moved
+            moved_blocks = {}
+            for src_idx, dst_idx in shift_map.items():
+                bounds = _get_block_bounds(
+                    src_idx, grid_dims, (self.block_width, self.block_height)
+                )
+                moved_blocks[dst_idx] = _extract_block(pixels, bounds)
 
-                # Place moved blocks at their destinations
-                for dst_idx, block in moved_blocks.items():
-                    bounds = _get_block_bounds(
-                        dst_idx, grid_dims, (self.block_width, self.block_height)
-                    )
-                    _place_block(result_pixels, block, bounds)
-
-            else:  # swap mode
-                # Perform swaps
-                swapped = set()
-                for src_idx, dst_idx in self.shift_map.items():
-                    if src_idx in swapped or dst_idx in swapped:
-                        continue  # Already handled in a previous swap
-
-                    # Extract both blocks
-                    src_bounds = _get_block_bounds(
-                        src_idx, grid_dims, (self.block_width, self.block_height)
-                    )
-                    dst_bounds = _get_block_bounds(
-                        dst_idx, grid_dims, (self.block_width, self.block_height)
-                    )
-
-                    src_block = _extract_block(pixels, src_bounds)
-                    dst_block = _extract_block(pixels, dst_bounds)
-
-                    # Swap them
-                    _place_block(result_pixels, dst_block, src_bounds)
-                    _place_block(result_pixels, src_block, dst_bounds)
-
-                    swapped.add(src_idx)
-                    swapped.add(dst_idx)
+            # Place moved blocks at their destinations
+            for dst_idx, block in moved_blocks.items():
+                bounds = _get_block_bounds(
+                    dst_idx, grid_dims, (self.block_width, self.block_height)
+                )
+                _place_block(result_pixels, block, bounds)
 
             # Create result image
             result_image = Image.fromarray(result_pixels)

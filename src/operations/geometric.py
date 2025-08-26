@@ -305,9 +305,11 @@ class PerspectiveStretch(BaseOperation):
 class RadialStretch(BaseOperation):
     """Stretch image radially from center point outward."""
 
-    center: tuple[int, int] | Literal["auto"] = Field(
-        "auto", description="Center point for radial stretch"
+    center_mode: Literal["auto", "custom"] = Field(
+        "auto", description="Center point selection method"
     )
+    center_x: int = Field(0, ge=0, description="X coordinate of center point (for custom mode)")
+    center_y: int = Field(0, ge=0, description="Y coordinate of center point (for custom mode)")
     factor: float = Field(
         1.5, gt=0, description="Scaling factor (>1 for stretching, <1 for compressing)"
     )
@@ -321,12 +323,14 @@ class RadialStretch(BaseOperation):
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate parameters against image context."""
         # Check center coordinates if specified
-        if isinstance(self.center, tuple):
-            cx, cy = self.center
-            if cx < 0 or cx >= context.width or cy < 0 or cy >= context.height:
+        if self.center_mode == "custom":
+            if self.center_x < 0 or self.center_x >= context.width:
                 raise ValidationError(
-                    f"Center point ({cx}, {cy}) is outside image bounds "
-                    + f"({context.width}x{context.height})"
+                    f"Center X coordinate {self.center_x} is outside image bounds [0, {context.width})"
+                )
+            if self.center_y < 0 or self.center_y >= context.height:
+                raise ValidationError(
+                    f"Center Y coordinate {self.center_y} is outside image bounds [0, {context.height})"
                 )
 
         # Check for extreme stretch factors
@@ -347,7 +351,7 @@ class RadialStretch(BaseOperation):
 
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
-        config_str = f"{self.center}_{self.factor}_{self.falloff}_{self.interpolation}"
+        config_str = f"{self.center_mode}_{self.center_x}_{self.center_y}_{self.factor}_{self.falloff}_{self.interpolation}"
         return f"radial_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
@@ -373,10 +377,10 @@ class RadialStretch(BaseOperation):
             height, width = image_array.shape[:2]
 
             # Determine center point
-            if self.center == "auto":
+            if self.center_mode == "auto":
                 cx, cy = width / 2, height / 2
             else:
-                cx, cy = self.center
+                cx, cy = self.center_x, self.center_y
 
             # Calculate maximum radius for normalization
             max_radius = math.sqrt(

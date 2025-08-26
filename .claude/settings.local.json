@@ -89,7 +89,10 @@
       "Bash(PYTHONPATH=src uv run ruff check src/ui/components/enhanced_step_visualizer.py src/ui/components/grid_viewer.py src/ui/components/image_inspector.py --no-fix)",
       "Bash(PYTHONPATH=src uv run ruff check src/ui/components/enhanced_step_visualizer.py src/ui/components/grid_viewer.py src/ui/components/image_inspector.py --fix --unsafe-fixes)",
       "Bash(SKIP_PYTEST=1 git add -A)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(PYTHONPATH=src uv run ruff check src/operations/column.py --fix)",
+      "Bash(PYTHONPATH=src uv run ruff check src/operations/geometric.py src/operations/pattern.py --no-fix)",
+      "Bash(PYTHONPATH=src uv run ruff check src/operations/channel.py src/operations/pixel.py --no-fix)"
     ],
     "deny": [],
     "ask": []

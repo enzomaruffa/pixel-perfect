@@ -287,40 +287,48 @@ class ChannelSwap(BaseOperation):
 class ChannelIsolate(BaseOperation):
     """Keep only specific channels, fill others with specified value."""
 
-    keep_channels: list[str] = Field(["r"], description="Channels to preserve")
+    keep_red: bool = Field(True, description="Keep red channel")
+    keep_green: bool = Field(False, description="Keep green channel")
+    keep_blue: bool = Field(False, description="Keep blue channel")
+    keep_alpha: bool = Field(False, description="Keep alpha channel")
     fill_value: int = Field(0, ge=0, le=255, description="Value for removed channels")
 
-    @field_validator("keep_channels")
-    @classmethod
-    def validate_keep_channels(cls, v):
-        """Validate channel list."""
-        valid_channels = {"r", "g", "b", "a"}
-
-        if not v:
+    @model_validator(mode="after")
+    def validate_at_least_one_channel(self):
+        """Validate that at least one channel is kept."""
+        if not (self.keep_red or self.keep_green or self.keep_blue or self.keep_alpha):
             raise ValueError("Must keep at least one channel")
+        return self
 
-        for ch in v:
-            if ch not in valid_channels:
-                raise ValueError(f"Invalid channel: {ch}")
-
-        return v
+    def _get_keep_channels_list(self) -> list[str]:
+        """Get list of channels to keep for compatibility."""
+        channels = []
+        if self.keep_red:
+            channels.append("r")
+        if self.keep_green:
+            channels.append("g")
+        if self.keep_blue:
+            channels.append("b")
+        if self.keep_alpha:
+            channels.append("a")
+        return channels
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""
         # Determine if we need to convert image mode
-        needs_alpha = "a" in self.keep_channels
+        needs_alpha = self.keep_alpha
         new_channels = 4 if needs_alpha else max(3, context.channels)
 
         return context.copy_with_updates(channels=new_channels)
 
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
-        channels_str = ",".join(sorted(self.keep_channels))
+        channels_str = ",".join(sorted(self._get_keep_channels_list()))
         return f"channelisolate_{image_hash}_{hash(f'{channels_str}_{self.fill_value}')}"
 
     def estimate_memory(self, context: ImageContext) -> int:
         """Estimate memory usage for this operation."""
-        channels_needed = 4 if "a" in self.keep_channels else 3
+        channels_needed = 4 if self.keep_alpha else 3
         return context.width * context.height * max(context.channels, channels_needed)
 
     def apply(self, image: Image.Image, context: ImageContext) -> tuple[Image.Image, ImageContext]:
@@ -345,8 +353,9 @@ class ChannelIsolate(BaseOperation):
             fill_array = np.full_like(channels[all_channels[0]], self.fill_value)
 
             new_channels = {}
+            keep_channels_list = self._get_keep_channels_list()
             for ch in all_channels:
-                if ch in self.keep_channels:
+                if ch in keep_channels_list:
                     new_channels[ch] = channels[ch]
                 else:
                     new_channels[ch] = fill_array

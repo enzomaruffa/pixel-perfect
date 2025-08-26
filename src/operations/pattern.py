@@ -176,24 +176,14 @@ def _diffuse_error(error_buffer: np.ndarray, x: int, y: int, error: np.ndarray) 
 class Mosaic(BaseOperation):
     """Create mosaic/tile effect with configurable sampling."""
 
-    tile_size: tuple[int, int] = Field((8, 8), description="Size of mosaic tiles (width, height)")
+    tile_width: int = Field(8, ge=1, le=256, description="Width of mosaic tiles in pixels")
+    tile_height: int = Field(8, ge=1, le=256, description="Height of mosaic tiles in pixels")
     gap_size: int = Field(1, ge=0, description="Spacing between tiles in pixels")
     gap_color: tuple[int, int, int, int] = Field((0, 0, 0, 255), description="RGBA color for gaps")
     sample_mode: Literal["average", "center", "random"] = Field(
         "average", description="Tile color sampling method"
     )
     random_seed: int | None = Field(None, description="Random seed for reproducible sampling")
-
-    @field_validator("tile_size")
-    @classmethod
-    def validate_tile_size(cls, v):
-        """Validate tile size."""
-        width, height = v
-        if width <= 0 or height <= 0:
-            raise ValueError("Tile size must be positive")
-        if width > 256 or height > 256:
-            raise ValueError("Tile size too large (max 256x256)")
-        return v
 
     @field_validator("gap_color")
     @classmethod
@@ -208,7 +198,7 @@ class Mosaic(BaseOperation):
 
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
-        config_str = f"{self.tile_size}_{self.gap_size}_{self.gap_color}_{self.sample_mode}_{self.random_seed}"
+        config_str = f"{self.tile_width}_{self.tile_height}_{self.gap_size}_{self.gap_color}_{self.sample_mode}_{self.random_seed}"
         return f"mosaic_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
@@ -231,7 +221,7 @@ class Mosaic(BaseOperation):
             else:
                 canvas = np.full((height, width), self.gap_color[0], dtype=np.uint8)
 
-            tile_width, tile_height = self.tile_size
+            tile_width, tile_height = self.tile_width, self.tile_height
 
             # Process tiles
             for y in range(0, height, tile_height):
@@ -254,7 +244,13 @@ class Mosaic(BaseOperation):
                     tile_color = _sample_tile_color(tile_pixels, self.sample_mode, seed)
 
                     # Draw tile with gaps
-                    _draw_tile_with_gaps(canvas, (x, y), tile_color, self.tile_size, self.gap_size)
+                    _draw_tile_with_gaps(
+                        canvas,
+                        (x, y),
+                        tile_color,
+                        (self.tile_width, self.tile_height),
+                        self.gap_size,
+                    )
 
             # Convert back to PIL Image
             result_image = Image.fromarray(canvas, image.mode)

@@ -452,38 +452,109 @@ class ColumnMirror(BaseOperation):
 class ColumnWeave(BaseOperation):
     """Interlace columns from different parts of image."""
 
-    pattern: list[int] = Field(
-        ...,
-        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
+    weave_type: Literal["alternating", "every_nth", "reverse", "interleave"] = Field(
+        "alternating", description="Type of weaving pattern"
     )
-    repeat: bool = Field(True, description="Cycle pattern if shorter than width")
+    skip_amount: int = Field(2, ge=1, description="Skip every N columns (for every_nth pattern)")
+    reverse_sections: int = Field(
+        2, ge=2, description="Number of sections to reverse (for reverse pattern)"
+    )
+    interleave_width: int = Field(1, ge=1, description="Width of each interleaved section")
 
-    @field_validator("pattern")
+    @field_validator("skip_amount", "reverse_sections", "interleave_width")
     @classmethod
-    def validate_pattern(cls, v):
-        if not v:
-            raise ValidationError("Pattern cannot be empty")
-        if any(idx < 0 for idx in v):
-            raise ValidationError("Pattern indices cannot be negative")
+    def validate_positive(cls, v):
+        if v <= 0:
+            raise ValidationError("Value must be positive")
         return v
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""
-        max_pattern_idx = max(self.pattern)
-        if max_pattern_idx >= context.width:
+        if self.weave_type == "reverse" and self.reverse_sections > context.width:
             raise ValidationError(
-                f"Pattern index {max_pattern_idx} exceeds image width {context.width}"
+                f"reverse_sections {self.reverse_sections} exceeds image width {context.width}"
             )
         return context.copy_with_updates()
 
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
-        config_str = f"{self.pattern}_{self.repeat}"
+        config_str = (
+            f"{self.weave_type}_{self.skip_amount}_{self.reverse_sections}_{self.interleave_width}"
+        )
         return f"columnweave_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
         """Estimate memory usage in bytes."""
         return context.memory_estimate * 2  # Input + output
+
+    def _generate_pattern(self, width: int) -> list[int]:
+        """Generate column mapping pattern based on weave_type.
+
+        Args:
+            width: Image width in pixels
+
+        Returns:
+            List of source column indices for each destination column
+        """
+        if self.weave_type == "alternating":
+            # Alternate between first and second half of image
+            pattern = []
+            half_width = width // 2
+            for i in range(width):
+                if i % 2 == 0:
+                    pattern.append(i // 2)
+                else:
+                    pattern.append(half_width + i // 2)
+            return pattern
+
+        elif self.weave_type == "every_nth":
+            # Take every N-th column, cycling through all columns
+            pattern = []
+            for i in range(width):
+                pattern.append((i * self.skip_amount) % width)
+            return pattern
+
+        elif self.weave_type == "reverse":
+            # Divide into sections and reverse each section
+            pattern = []
+            section_size = width // self.reverse_sections
+            for i in range(width):
+                section = i // section_size
+                pos_in_section = i % section_size
+                # Reverse position within section
+                reversed_pos = section_size - 1 - pos_in_section
+                source_col = section * section_size + reversed_pos
+                # Clamp to valid range
+                source_col = min(source_col, width - 1)
+                pattern.append(source_col)
+            return pattern
+
+        elif self.weave_type == "interleave":
+            # Interleave blocks of specified width
+            pattern = []
+            num_blocks = (width + self.interleave_width - 1) // self.interleave_width
+            half_blocks = num_blocks // 2
+
+            for i in range(width):
+                block_idx = i // self.interleave_width
+                pos_in_block = i % self.interleave_width
+
+                if block_idx % 2 == 0:
+                    # Even blocks come from first half
+                    source_block = block_idx // 2
+                else:
+                    # Odd blocks come from second half
+                    source_block = half_blocks + (block_idx // 2)
+
+                source_col = source_block * self.interleave_width + pos_in_block
+                # Clamp to valid range
+                source_col = min(source_col, width - 1)
+                pattern.append(source_col)
+
+            return pattern
+
+        else:
+            raise ValidationError(f"Unknown weave_type: {self.weave_type}")
 
     def apply(self, image: Image.Image, context: ImageContext) -> tuple[Image.Image, ImageContext]:
         """Apply column weaving to image."""
@@ -495,19 +566,12 @@ class ColumnWeave(BaseOperation):
 
             result_pixels = pixels.copy()
 
+            # Generate pattern for this image width
+            pattern = self._generate_pattern(width)
+
             # Apply pattern mapping
             for dest_col in range(width):
-                if self.repeat:
-                    # Cycle through pattern
-                    pattern_idx = dest_col % len(self.pattern)
-                    source_col = self.pattern[pattern_idx] % width
-                else:
-                    # Use pattern as-is, original columns for beyond pattern length
-                    if dest_col < len(self.pattern):
-                        source_col = self.pattern[dest_col] % width
-                    else:
-                        source_col = dest_col  # Keep original column
-
+                source_col = pattern[dest_col] % width  # Ensure valid index
                 result_pixels[:, dest_col] = pixels[:, source_col]
 
             # Create result image

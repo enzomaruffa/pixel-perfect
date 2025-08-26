@@ -10,7 +10,7 @@ from core.base import BaseOperation
 from core.context import ImageContext
 from exceptions import ProcessingError, ValidationError
 from operations._constants import get_standardized_description, get_standardized_error
-from utils.validation import validate_channel_list, validate_color_tuple, validate_expression_safe
+from utils.validation import validate_color_tuple, validate_expression_safe
 
 
 class PixelFilterConfig(BaseModel):
@@ -67,36 +67,6 @@ class PixelFilterConfig(BaseModel):
         validated = validate_color_tuple(v, channels=4)
         # Type assert since we know validate_color_tuple with channels=4 returns 4-tuple
         return validated  # type: ignore[return-value]
-
-
-class PixelMathConfig(BaseModel):
-    """Configuration for PixelMath operation."""
-
-    expression: str = Field(
-        ...,
-        description="Mathematical expression using variables: 'r', 'g', 'b', 'a' (pixel channels), 'x' (column), 'y' (row), 'width', 'height'. Example: 'r * 0.8 + g * 0.2'",
-    )
-    channels: list[str] = Field(
-        ["r", "g", "b"],
-        description="Color channels to apply the expression to (subset of ['r', 'g', 'b', 'a'])",
-    )
-    clamp: bool = Field(
-        True,
-        description="Whether to clamp result values to valid range [0-255] (recommended to prevent overflow)",
-    )
-
-    @field_validator("expression")
-    @classmethod
-    def validate_expression(cls, v: str) -> str:
-        """Validate mathematical expression."""
-        validate_expression_safe(v)
-        return v
-
-    @field_validator("channels")
-    @classmethod
-    def validate_channels(cls, v: list[str]) -> list[str]:
-        """Validate channel list."""
-        return validate_channel_list(v)
 
 
 class PixelSortConfig(BaseModel):
@@ -327,7 +297,10 @@ class PixelMath(BaseOperation):
     """Apply mathematical transformations to pixel values."""
 
     expression: str = Field(..., description="Math expression using r,g,b,a,x,y variables")
-    channels: list[str] = Field(["r", "g", "b"], description="Channels to affect")
+    affect_red: bool = Field(True, description="Apply expression to red channel")
+    affect_green: bool = Field(True, description="Apply expression to green channel")
+    affect_blue: bool = Field(True, description="Apply expression to blue channel")
+    affect_alpha: bool = Field(False, description="Apply expression to alpha channel")
     clamp: bool = Field(True, description="Clamp results to valid range [0, 255]")
 
     @field_validator("expression")
@@ -337,11 +310,25 @@ class PixelMath(BaseOperation):
         validate_expression_safe(v)
         return v
 
-    @field_validator("channels")
-    @classmethod
-    def validate_channels(cls, v: list[str]) -> list[str]:
-        """Validate channel list."""
-        return validate_channel_list(v)
+    @model_validator(mode="after")
+    def validate_at_least_one_channel(self):
+        """Validate that at least one channel is affected."""
+        if not (self.affect_red or self.affect_green or self.affect_blue or self.affect_alpha):
+            raise ValueError("Must affect at least one channel")
+        return self
+
+    def _get_affected_channels_list(self) -> list[str]:
+        """Get list of channels to affect for compatibility."""
+        channels = []
+        if self.affect_red:
+            channels.append("r")
+        if self.affect_green:
+            channels.append("g")
+        if self.affect_blue:
+            channels.append("b")
+        if self.affect_alpha:
+            channels.append("a")
+        return channels
 
     def validate_operation(self, context: ImageContext) -> ImageContext:
         """Validate operation against image context."""
@@ -350,7 +337,7 @@ class PixelMath(BaseOperation):
 
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
-        config_str = f"{self.expression}_{self.channels}_{self.clamp}"
+        config_str = f"{self.expression}_{self._get_affected_channels_list()}_{self.clamp}"
         return f"pixelmath_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
@@ -417,15 +404,14 @@ class PixelMath(BaseOperation):
             result = eval(self.expression, safe_dict)
 
             # Apply to specified channels
-            for channel in self.channels:
-                if channel == "r":
-                    pixels[:, :, 0] = result
-                elif channel == "g":
-                    pixels[:, :, 1] = result
-                elif channel == "b":
-                    pixels[:, :, 2] = result
-                elif channel == "a":
-                    pixels[:, :, 3] = result
+            if self.affect_red:
+                pixels[:, :, 0] = result
+            if self.affect_green:
+                pixels[:, :, 1] = result
+            if self.affect_blue:
+                pixels[:, :, 2] = result
+            if self.affect_alpha:
+                pixels[:, :, 3] = result
 
             # Clamp values if requested
             if self.clamp:
