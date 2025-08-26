@@ -57,7 +57,7 @@ def custom_pipeline(input_path: str, output_dir: str | None = None, **kwargs):
     # pipeline.add(RowShift(selection="every_n", n=1, shift_amount=10, wrap=True))
     # pipeline.add(ChannelSwap(red_source="green", green_source="blue", blue_source="red"))
     # pipeline.add(Mosaic(tile_size=(16, 16), gap_size=2, sample_mode="average"))
-    pipeline.add(BlockScramble(block_width=256, block_height=256, seed=42, exclude=[]))
+    pipeline.add(BlockScramble(block_width=256, block_height=256, seed=42, scramble_ratio=0.5))
 
     # ============================================================
 

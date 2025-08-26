@@ -562,9 +562,8 @@ class BlockScramble(BaseOperation):
     block_width: int = Field(8, gt=0, description="Width of blocks")
     block_height: int = Field(8, gt=0, description="Height of blocks")
     seed: int | None = Field(None, description="Random seed for reproducibility")
-    exclude: list[int] | None = Field(
-        None,
-        description="Specific zero-based indices to affect (e.g., [0, 2, 4] for first, third, fifth items)",
+    scramble_ratio: float = Field(
+        0.3, ge=0.0, le=1.0, description="Fraction of blocks to scramble (0.0 = none, 1.0 = all)"
     )
     padding_mode: Literal["crop", "extend", "fill"] = "crop"
 
@@ -579,7 +578,7 @@ class BlockScramble(BaseOperation):
     def get_cache_key(self, image_hash: str) -> str:
         """Generate cache key for this operation."""
         config_str = f"{self.block_width}_{self.block_height}_{self.seed}"
-        config_str += f"_{self.exclude}_{self.padding_mode}"
+        config_str += f"_{self.scramble_ratio}_{self.padding_mode}"
         return f"blockscramble_{image_hash}_{hash(config_str)}"
 
     def estimate_memory(self, context: ImageContext) -> int:
@@ -611,14 +610,16 @@ class BlockScramble(BaseOperation):
                 random.seed(self.seed)
                 np.random.seed(self.seed)
 
-            # Create list of block indices to shuffle
+            # Create list of block indices and select which ones to scramble
             block_indices = list(range(total_blocks))
-            exclude_set = set(self.exclude) if self.exclude else set()
 
-            # Remove excluded blocks from shuffling
-            shuffleable_indices = [idx for idx in block_indices if idx not in exclude_set]
+            # Determine how many blocks to scramble based on ratio
+            num_blocks_to_scramble = int(total_blocks * self.scramble_ratio)
 
-            # Shuffle the indices
+            # Randomly select blocks to scramble
+            shuffleable_indices = random.sample(block_indices, num_blocks_to_scramble)
+
+            # Shuffle the selected indices
             shuffled_indices = shuffleable_indices.copy()
             random.shuffle(shuffled_indices)
 

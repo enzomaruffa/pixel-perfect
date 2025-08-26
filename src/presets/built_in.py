@@ -55,7 +55,10 @@ BUILT_IN_PRESETS = {
     "data-corruption": {
         "description": "Simulate data corruption with block scrambling and pixel math",
         "operations": [
-            {"type": "BlockScramble", "params": {"block_size": 16, "scramble_ratio": 0.3}},
+            {
+                "type": "BlockScramble",
+                "params": {"block_width": 16, "block_height": 16, "scramble_ratio": 0.3},
+            },
             {"type": "PixelMath", "params": {"expression": "r ^ 128", "channels": ["r", "g", "b"]}},
         ],
     },
